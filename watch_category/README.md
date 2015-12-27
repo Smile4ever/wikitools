@@ -1,3 +1,5 @@
+watch_category
+--------------
 watch_category is a script to (constantly) check a MediaWiki category. It uses the MediaWiki API. Once it detects changes in the category members, it opens the category page in the default browser.
 
 Requirements
@@ -9,7 +11,6 @@ Requirements
 
 Usage
 ------
-
 Automatically check every minute the category page configured in the script:
   watch -n60 ./watch_category.sh
 
@@ -24,7 +25,6 @@ Tips
 
 Notes
 -----
-
 * The script is limited to the first 500 members of a category.
 * Please do not use this script with too small timeouts, e.g. < 15 seconds. This has two reasons:
 ** It takes a while to fetch the page. Running the script again when it is not finished will not get you the desired results.
