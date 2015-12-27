@@ -21,7 +21,7 @@ fi
 echo "Getting the category listing for category $CATEGORY.."
 rm api.php*
 PREV=`cat result.txt`
-wget "$PROTOCOL$WIKI/w/api.php?action=query&list=categorymembers&cmtitle=$CATEGORY&format=json&cmlimit=500" 2&>/dev/null
+wget --user-agent="watch_category tool by Smile4ever" "$PROTOCOL$WIKI/w/api.php?action=query&list=categorymembers&cmtitle=$CATEGORY&format=json&cmlimit=500" 2&>/dev/null
 
 size=$(stat -c%s api.php*)
 empty=$(stat -c%s empty.json)
