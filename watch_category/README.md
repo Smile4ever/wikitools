@@ -1,6 +1,6 @@
 watch_category
 --------------
-watch_category is a script to (constantly) check a MediaWiki category. It uses the MediaWiki API. Once it detects changes in the category members, it opens the category page in the default browser.
+watch_category is a script to (constantly) check a MediaWiki category. It uses the MediaWiki API. Once it detects changes in the category members, it opens the changed pages or the category page in the default browser (see Configuration).
 
 Requirements
 ------------
@@ -17,7 +17,18 @@ Automatically check every minute the category page configured in the script:
 Automatically check every minute, using the command line parameter --cat:
   watch -n60 ./watch_category.sh --cat Category:Wikipedia
 
-Change the parameters like CATEGORY, PROTOCOL and WIKI at the top of the script.
+Configuration
+----------------------
+
+At the top of the script, you can set a few parameters. A runtime switch (like --cat) override the corresponding parameter.
+
+* CATEGORY="Categorie:Wikipedia:Nuweg"
+* PROTOCOL="https://"
+* WIKI="nl.wikipedia.org"
+
+Optional:
+
+* OPENPAGES="true" (set to false if you want to open the category page)
 
 Tips
 ----
