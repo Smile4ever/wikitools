@@ -3,7 +3,7 @@
 #
 # Features:
 # * Open pages or category page
-# * Only open new items (items that differ from the last time)
+# * Only open/show new items (items that differ from the last time)
 # * IRC bot
 
 # Notes
@@ -27,20 +27,30 @@ fi
 
 #IRC
 if [[ $BOTNAME == "" ]]; then
-	BOTNAME="smilebot-watchcat"
+	BOTNAME="smilebot-watch"
 fi
 if [[ $NETWORK == "" ]]; then
 	NETWORK="irc.freenode.net"
 fi
 if [[ $CHANNEL == "" ]]; then
 	CHANNEL="#wikipedia-nl-vandalism"
+	#CHANNEL="#cvn-wp-nl"
+	#CHANNEL=#hugsmile
 fi
 if [[ $INFOMESSAGES == "" ]]; then
 	INFOMESSAGES="false"
 fi
 if [[ $SPEAKLANG == "" ]]; then
-	SPEAKLANG="en"
+	#SPEAKLANG="en"
+	SPEAKLANG="nl"
 fi
+if [[ $IRCENABLED == "" ]]; then
+	IRCENABLED="true"
+fi
+if [[ $DESKTOPINT == "" ]]; then
+	DESKTOPINT="true"
+fi
+
 MESSAGE=""
 
 #You can also specify a category on the command line using --cat or -c
@@ -54,7 +64,7 @@ fi
 if [[ "$1" == "--init" ]]
 then
 	#MESSAGE="I have been initialized"
-    ./init.sh 2>/dev/null
+    ./init.sh
 fi
 
 
@@ -65,6 +75,10 @@ echo "Starting $BOTNAME, joining $CHANNEL"
 ii -s irc.freenode.net -n $BOTNAME -f "$BOTNAME running on watch_category.sh" &
 sleep 15
 echo "/j $CHANNEL"> ~/irc/irc.freenode.net/in
+#~ if [[ $CHANNEL2 != "" ]]; then
+	#~ echo "Joining $CHANNEL2 as well"
+	#~ echo "/j $CHANNEL2"> ~/irc/irc.freenode.net/in
+#~ fi
 #sleep 5
 cd $DIR
 
@@ -107,9 +121,10 @@ while true; do
 		if [[ $INFOMESSAGES == "true" ]]; then
 			echo "No results" > ~/irc/irc.freenode.net/$CHANNEL/in
 		fi
-		exit 0
+		sleep 60
+		continue
 	fi
-
+	NUMBEROFPAGES=$(wc -l < diff.txt)
 	sizediff=$(stat -c%s diff.txt)
 
 	if [[ "$sizediff" -gt 1 ]]; then
@@ -117,46 +132,58 @@ while true; do
 			 #Some notification daemons do not support links, like MATE
 			#ahref='<a href="$PROTOCOL$WIKI/wiki/$CATEGORY"></a>'
 			#notify-send "$CATEGORY" "$ahref\nNew items:\n$result"
-			notify-send "$CATEGORY" "New items:\n$result"
+			
 			#Auto-open the category page when there are new items
+							
+			if [[ $DESKTOPINT == "true" ]]; then
+				notify-send "$CATEGORY" "New items:\n$result"
 				
-			if [ "$OPENPAGES" == "true" ]; then
-				while read article
-				do
-					xdg-open "$PROTOCOL$WIKI/wiki/$article"
-				done < diff.txt
-			else
-				xdg-open "$PROTOCOL$WIKI/wiki/$CATEGORY"
+				if [[ "$OPENPAGES" == "true" ]] && [[ $NUMBEROFPAGES -lt 3 ]]; then
+					while read article
+					do
+						xdg-open "$PROTOCOL$WIKI/wiki/$article"
+					done < diff.txt
+				else
+					xdg-open "$PROTOCOL$WIKI/wiki/$CATEGORY"
+				fi
 			fi
 			
-			while read article
-			do
-				#echo "reading.."
-				#pwd
-				#cat "/home/geoffrey/irc/irc.freenode.net/$CHANNEL/out"
-				message="There is a new article in"
-				if [[ $SPEAKLANG == "nl" ]]; then
-					message="Er is een nieuw artikel in"
+			if [[ $IRCENABLED == "true" ]]; then
+				echo "Number of lines: $NUMBEROFPAGES"
+				if [[ $NUMBEROFPAGES -lt 3 ]]; then
+					while read article
+					do
+						message="There is a new article:"
+						if [[ $SPEAKLANG == "nl" ]]; then
+							message="Er is een nieuw artikel:"
+						fi
+						
+						article_underscore=`echo $article | sed -e 's/ /_/g'`
+						echo "$message $PROTOCOL$WIKI/wiki/$article_underscore"
+						echo "$message $PROTOCOL$WIKI/wiki/$article_underscore" > ~/irc/irc.freenode.net/$CHANNEL/in
+						
+					done < diff.txt
+				else
+					message="There are $NUMBEROFPAGES new pages in"
+					if [[ $SPEAKLANG == "nl" ]]; then
+						message="Er zijn $NUMBEROFPAGES nieuwe pagina's in"
+					fi
+					echo "$message $PROTOCOL$WIKI/wiki/$CATEGORY" > ~/irc/irc.freenode.net/$CHANNEL/in
 				fi
-				echo "$message $PROTOCOL$WIKI/wiki/$CATEGORY" > ~/irc/irc.freenode.net/$CHANNEL/in
-				
-				article_underscore=`echo $article | sed -e 's/ /_/g'`
-				
-				echo "$PROTOCOL$WIKI/wiki/$article_underscore" > ~/irc/irc.freenode.net/$CHANNEL/in
-			done < diff.txt
+			fi
 		else
 			echo "Not different from the last time"
-			if [[ $INFOMESSAGES == "true" ]]; then
+			if [[ $INFOMESSAGES == "true" ]] && [[ $IRCENABLED == "true" ]]; then
 				echo "Not different from the last time" > ~/irc/irc.freenode.net/$CHANNEL/in
 			fi
 		fi
 	else
 		echo "Difference with last time is zero."
-		if [[ $INFOMESSAGES == "true" ]]; then
+		if [[ $INFOMESSAGES == "true" ]] && [[ $IRCENABLED == "true" ]]; then
 			echo "Difference with last time is zero." > ~/irc/irc.freenode.net/$CHANNEL/in
 		fi
 	fi
 
 	rm diff.txt
-	sleep 20
+	sleep 60
 done

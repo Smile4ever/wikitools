@@ -1,16 +1,14 @@
 watch_category
 --------------
-watch_category is a script to (constantly) check a MediaWiki category. It uses the MediaWiki API. Once it detects changes in the category members, it opens the changed pages or the category page in the default browser (see Configuration).
-
-This script also is a bot for an IRC channel.
+watch_category is a bot script to (constantly) check a MediaWiki category. It uses the MediaWiki API. Once it detects changes in the category members, it signals this on an IRC channel. It also opens the changed pages or the category page in the default browser (see Configuration) unless DESKTOPINT is set to false.
 
 Requirements
 ------------
 * wget
 * jq
-* xdg-open
-* notify-send (libnotify)
-* ii ([link](http://tools.suckless.org/ii))
+* xdg-open (optional)
+* notify-send (libnotify, optional)
+* ii ([link](http://tools.suckless.org/ii), optional)
 
 Usage
 ------
@@ -18,13 +16,18 @@ Automatically:
 1) check every minute (configured in-script)
 2) the category page (configured in-script)
 3) joining IRC channel #wikipedia-nl-vandalism on freenode
-4) with username smilebot-nuweg:
+4) with username smilebot-nuweg
+5) only the IRC module (disabling desktop integration):
 
-  BOTNAME=smilebot-nuweg CHANNEL=#wikipedia-nl-vandalism ./watch_category.sh
+  BOTNAME=smilebot-nuweg CHANNEL=#wikipedia-nl-vandalism DESKTOPINT=false ./watch_category.sh
 
 Quit bot:
 1) press CTRL+C
 2) run ./quitbot.sh (this is strongly advised in order to have a clean shutdown)
+
+Restart bot:
+1) press CTRL+C
+2) run ./watch-category.sh again
 
 Configuration
 ----------------------
@@ -47,6 +50,8 @@ IRC:
 * CHANNEL="#wikipedia-nl-vandalism"
 * INFOMESSAGES="false" (do not display infomessages in the IRC channel)
 * SPEAKLANG="en" (can also be set to "nl", has no effect on infomessages currently)
+* IRCENABLED="true": enables IRC integration
+* DESKTOPINT="true": set this to false if you want to run the bot on a (headless) server. disables libnotify and xdg-open integration
 
 Tips
 ----
