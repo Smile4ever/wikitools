@@ -13,15 +13,11 @@ Requirements
 Usage
 ------
 Automatically:
-1) check every minute (configured in-script)
-
-2) the category page (configured in-script)
-
-3) joining IRC channel #wikipedia-nl-vandalism on freenode
-
-4) with username smilebot-nuweg
-
-5) only the IRC module (disabling desktop integration):
+1. check every minute (configured in-script)
+2. the category page (configured in-script)
+3. joining IRC channel #wikipedia-nl-vandalism on freenode
+4. with username smilebot-nuweg
+5. only the IRC module (disabling desktop integration):
 
   BOTNAME=smilebot-nuweg CHANNEL=#wikipedia-nl-vandalism DESKTOPINT=false ./watch_category.sh
 
