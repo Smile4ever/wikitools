@@ -69,18 +69,14 @@ fi
 
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd
-echo "Starting $BOTNAME, joining $CHANNEL"
-#rm -rf irc
-ii -s irc.freenode.net -n $BOTNAME -f "$BOTNAME running on watch_category.sh" &
-sleep 15
-echo "/j $CHANNEL"> ~/irc/irc.freenode.net/in
-#~ if [[ $CHANNEL2 != "" ]]; then
-	#~ echo "Joining $CHANNEL2 as well"
-	#~ echo "/j $CHANNEL2"> ~/irc/irc.freenode.net/in
-#~ fi
-#sleep 5
-cd $DIR
+if [[ $IRCENABLED == "true" ]]; then
+	cd
+	echo "Starting $BOTNAME, joining $CHANNEL"
+	ii -s irc.freenode.net -n $BOTNAME -f "$BOTNAME running on watch_category.sh" &
+	sleep 15
+	echo "/j $CHANNEL"> ~/irc/irc.freenode.net/in
+	cd $DIR
+fi
 
 echo "Getting the category listing for category $CATEGORY.."
 
