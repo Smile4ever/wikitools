@@ -48,9 +48,6 @@ else
 	echo "No results"
 	if [[ $INFOMESSAGES == "true" ]]; then
 		echo "No results" > ~/irc/irc.freenode.net/$CHANNEL/in
-		#~ if [[ $CHANNEL2 != "" ]]; then
-			#~ echo "No results" > ~/irc/irc.freenode.net/$CHANNEL2/in
-		#~ fi
 	fi
 	exit 0
 fi
@@ -65,14 +62,12 @@ if [[ "$sizediff" -gt 1 ]]; then
 		if [ "$OPENPAGES" == "true" ]; then
 			while read article
 			do
-				echo ""
-				#xdg-open "$PROTOCOL$WIKI/wiki/$article"
+				xdg-open "$PROTOCOL$WIKI/wiki/$article"
 			done < diff.txt
 		else
-			echo ""
-			#xdg-open "$PROTOCOL$WIKI/wiki/$CATEGORY"
+			xdg-open "$PROTOCOL$WIKI/wiki/$CATEGORY"
 		fi
-		
+				
 		while read article
 		do
 			echo "Er is een nieuw artikel in $PROTOCOL$WIKI/wiki/$CATEGORY"
