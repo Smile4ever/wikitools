@@ -6,18 +6,27 @@ Requirements
 ------------
 * wget
 * jq
-* xdg-open
-* notify-send (libnotify)
+* xdg-open (optional, needed for bot)
+* notify-send (libnotify) (optional)
 * watch
+* xdotool (needed for bot)
 
 Usage
 ------
 Check every 20 seconds:
   watch -n20 ./watch_category.sh
 
-Tips
+Tip: automatically delete pages from a category (nl.wikipedia.org)
 ----
-* For nl.wikipedia.org, this script can be combined with [Fast Delete](https://addons.mozilla.org/en-US/addon/fast-delete/) (for example, checking the category Categorie:Wikipedia:Nuweg)
+For nl.wikipedia.org, this script can be combined with [Fast Delete](https://addons.mozilla.org/en-US/addon/fast-delete/).
+
+To set this up:
+* install Firefox (or any derived browser, such as Seamonkey or Pale Moon)
+* install Fast Delete in Firefox and check the option Safe mode in the preferences
+* start the bot script: watch -n5 ./send-f8.sh
+* start the watch script: watch -n5 ./watch_category.sh
+
+Please note that you will need to dedicate a machine for this, as your computer will constantly open (and close) new tabs. This software can run on the Raspberry Pi.
 
 Notes
 -----
