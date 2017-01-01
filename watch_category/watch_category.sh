@@ -1,17 +1,13 @@
 #!/bin/bash
-# Watch a category
+# watch_category 1.0
+# Watch a category on a MediaWiki website
 #
 # Features:
 # * Open pages or category page
 # * Only open/show new items (items that differ from the last time)
 # * IRC bot
 
-# Notes
-# 
-# To quit, use ./quitbot.sh 
-
 # Change this or use command line parameters
-#CATEGORY="Categorie:Wikipedia:Onbereikbare externe link"
 if [[ $CATEGORY == "" ]]; then
 	CATEGORY="Categorie:Wikipedia:Nuweg"
 fi
@@ -22,7 +18,14 @@ if [[ $WIKI == "" ]]; then
 	WIKI="nl.wikipedia.org"
 fi
 if [[ $OPENPAGES == "" ]]; then
-	OPENPAGES="true"
+	OPENPAGES="false"
+fi
+if [[ $SECONDS == "" ]]; then
+	SECONDS=60
+fi
+if [[ $SPEAKLANG == "" ]]; then
+	SPEAKLANG="en"
+	#SPEAKLANG="nl"
 fi
 
 #IRC
@@ -40,16 +43,23 @@ fi
 if [[ $INFOMESSAGES == "" ]]; then
 	INFOMESSAGES="false"
 fi
-if [[ $SPEAKLANG == "" ]]; then
-	#SPEAKLANG="en"
-	SPEAKLANG="nl"
-fi
 if [[ $IRCENABLED == "" ]]; then
 	IRCENABLED="true"
 fi
 if [[ $DESKTOPINT == "" ]]; then
-	DESKTOPINT="true"
+	DESKTOPINT="false"
 fi
+if [[ $USERNAME == "" ]]; then
+	USERNAME="smile"
+fi
+
+function msg {
+	if [[ $USERNAME == "" ]]; then
+		echo "$1" > ~/irc/irc.freenode.net/$CHANNEL/in
+	else
+		echo "/PRIVMSG $USERNAME :$1"> ~/irc/irc.freenode.net/$CHANNEL/in
+	fi
+}
 
 MESSAGE=""
 
@@ -61,24 +71,61 @@ then
 fi
 
 # --init cannot be passed in a loop!
-if [[ "$1" == "--init" ]]
+if [[ "$1" == "--init" || "$1" == "-i" ]]
 then
-	#MESSAGE="I have been initialized"
     ./init.sh
 fi
 
+if [[ "$1" == "--forcerestart" || $1 == "-f" ]]
+then
+	if [[ $IRCENABLED == "true" ]]; then
+		./quitbot.sh "$SPEAKLANG"
+		sleep 5 #wait for the bot to quit
+	fi
+fi
+
+if [[ "$1" == "--quit" || "$1" == "-q" ]]
+then
+	if [[ $IRCENABLED == "true" ]]; then
+		./quitbot.sh "$SPEAKLANG"
+		exit
+	fi
+fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [[ $IRCENABLED == "true" ]]; then
 	cd
-	echo "Starting $BOTNAME, joining $CHANNEL"
-	ii -s irc.freenode.net -n $BOTNAME -f "$BOTNAME running on watch_category.sh" &
+	
+	if [[ $SPEAKLANG == "nl" ]]; then
+		echo "Starten van $BOTNAME, verbinden met $CHANNEL op $NETWORK"
+		echo "Desktopintegratie is $DESKTOPINT, IRC ingeschakeld is $IRCENABLED"
+	else
+		echo "Starting $BOTNAME, joining $CHANNEL on $NETWORK"
+		echo "Desktop integration is $DESKTOPINT, IRC enabled is $IRCENABLED"
+	fi
+	
+	MESSAGE="$BOTNAME running on watch_category.sh"
+	if [[ $SPEAKLANG == "nl" ]]; then
+		MESSAGE="$BOTNAME draait op watch_category.sh"
+	fi
+	
+	ii -s irc.freenode.net -n $BOTNAME -f "${MESSAGE}" &
 	sleep 15
 	echo "/j $CHANNEL"> ~/irc/irc.freenode.net/in
+	#msg "/PRIVMSG $USERNAME: Starting $BOTNAME, joining $CHANNEL on $NETWORK"
+	MESSAGE="I now watch ${PROTOCOL}${WIKI}/wiki/${CATEGORY} for new items."
+	if [[ $SPEAKLANG == "nl" ]]; then
+		MESSAGE="Ik hou nu ${PROTOCOL}${WIKI}/wiki/${CATEGORY} in de gaten voor nieuwe items."
+	fi
+	msg "$MESSAGE"
 	cd $DIR
 fi
 
-echo "Getting the category listing for category $CATEGORY.."
+MESSAGE="Getting the category listing for category $CATEGORY.."
+if [[ $SPEAKLANG == "nl" ]]; then
+	MESSAGE="De inhoud van de categorie $CATEGORY ophalen.."
+fi
+echo $MESSAGE
 
 while true; do
 	date +"%T"
@@ -113,11 +160,16 @@ while true; do
 		grep -v -f prev.txt result.txt > diff.txt
 		result=`cat diff.txt`
 	else
-		echo "No results"
-		if [[ $INFOMESSAGES == "true" ]]; then
-			echo "No results" > ~/irc/irc.freenode.net/$CHANNEL/in
+		MESSAGE="No results"
+		if [[ $SPEAKLANG == "nl" ]]; then
+			MESSAGE="Geen resultaten"
 		fi
-		sleep 60
+		echo $MESSAGE
+		
+		if [[ $INFOMESSAGES == "true" ]]; then
+			msg $MESSAGE
+		fi
+		sleep $SECONDS
 		continue
 	fi
 	NUMBEROFPAGES=$(wc -l < diff.txt)
@@ -132,7 +184,12 @@ while true; do
 			#Auto-open the category page when there are new items
 							
 			if [[ $DESKTOPINT == "true" ]]; then
-				notify-send "$CATEGORY" "New items:\n$result"
+				MESSAGE = "$CATEGORY" "New items:\n$result"
+				if [[ $SPEAKLANG == "nl" ]]; then
+					MESSAGE="$CATEGORY" "Nieuwe items:\n$result"
+				fi
+			
+				notify-send $MESSAGE
 				
 				if [[ "$OPENPAGES" == "true" ]] && [[ $NUMBEROFPAGES -lt 3 ]]; then
 					while read article
@@ -145,41 +202,56 @@ while true; do
 			fi
 			
 			if [[ $IRCENABLED == "true" ]]; then
-				echo "Number of lines: $NUMBEROFPAGES"
+				MESSAGE = "Number of lines: $NUMBEROFPAGES"
+				if [[ $SPEAKLANG == "nl" ]]; then
+					MESSAGE="Aantal lijnen: $NUMBEROFPAGES"
+				fi
+				echo $MESSAGE
+				
 				if [[ $NUMBEROFPAGES -lt 3 ]]; then
 					while read article
 					do
-						message="There is a new article:"
+						MESSAGE="There is a new article:"
 						if [[ $SPEAKLANG == "nl" ]]; then
-							message="Er is een nieuw artikel:"
+							MESSAGE="Er is een nieuw artikel:"
 						fi
 						
 						article_underscore=`echo $article | sed -e 's/ /_/g'`
-						echo "$message $PROTOCOL$WIKI/wiki/$article_underscore"
-						echo "$message $PROTOCOL$WIKI/wiki/$article_underscore" > ~/irc/irc.freenode.net/$CHANNEL/in
+						echo "$MESSAGE $PROTOCOL$WIKI/wiki/$article_underscore"
+						msg "$MESSAGE $PROTOCOL$WIKI/wiki/$article_underscore"
 						
 					done < diff.txt
 				else
-					message="There are $NUMBEROFPAGES new pages in"
+					MESSAGE="There are $NUMBEROFPAGES new pages in"
 					if [[ $SPEAKLANG == "nl" ]]; then
-						message="Er zijn $NUMBEROFPAGES nieuwe pagina's in"
+						MESSAGE="Er zijn $NUMBEROFPAGES nieuwe pagina's in"
 					fi
-					echo "$message $PROTOCOL$WIKI/wiki/$CATEGORY" > ~/irc/irc.freenode.net/$CHANNEL/in
+					msg "$MESSAGE $PROTOCOL$WIKI/wiki/$CATEGORY"
 				fi
 			fi
 		else
-			echo "Not different from the last time"
+			MESSAGE = "Not different from the last time"
+			if [[ $SPEAKLANG == "nl" ]]; then
+				MESSAGE="Niet anders dan de vorige keer."
+			fi
+			echo $MESSAGE
+			
 			if [[ $INFOMESSAGES == "true" ]] && [[ $IRCENABLED == "true" ]]; then
-				echo "Not different from the last time" > ~/irc/irc.freenode.net/$CHANNEL/in
+				msg $MESSAGE
 			fi
 		fi
 	else
-		echo "Difference with last time is zero."
+		MESSAGE = "Difference with last time is zero."
+		if [[ $SPEAKLANG == "nl" ]]; then
+			MESSAGE="Er is geen verschil met de vorige keer."
+		fi
+		echo $MESSAGE
+		
 		if [[ $INFOMESSAGES == "true" ]] && [[ $IRCENABLED == "true" ]]; then
-			echo "Difference with last time is zero." > ~/irc/irc.freenode.net/$CHANNEL/in
+			msg $MESSAGE
 		fi
 	fi
 
 	rm diff.txt
-	sleep 60
+	sleep $SECONDS
 done
