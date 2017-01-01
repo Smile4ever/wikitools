@@ -184,7 +184,7 @@ while true; do
 			#Auto-open the category page when there are new items
 							
 			if [[ $DESKTOPINT == "true" ]]; then
-				MESSAGE = "$CATEGORY" "New items:\n$result"
+				MESSAGE="$CATEGORY" "New items:\n$result"
 				if [[ $SPEAKLANG == "nl" ]]; then
 					MESSAGE="$CATEGORY" "Nieuwe items:\n$result"
 				fi
@@ -202,7 +202,7 @@ while true; do
 			fi
 			
 			if [[ $IRCENABLED == "true" ]]; then
-				MESSAGE = "Number of lines: $NUMBEROFPAGES"
+				MESSAGE="Number of lines: $NUMBEROFPAGES"
 				if [[ $SPEAKLANG == "nl" ]]; then
 					MESSAGE="Aantal lijnen: $NUMBEROFPAGES"
 				fi
@@ -230,7 +230,7 @@ while true; do
 				fi
 			fi
 		else
-			MESSAGE = "Not different from the last time"
+			MESSAGE="Not different from the last time"
 			if [[ $SPEAKLANG == "nl" ]]; then
 				MESSAGE="Niet anders dan de vorige keer."
 			fi
@@ -241,7 +241,7 @@ while true; do
 			fi
 		fi
 	else
-		MESSAGE = "Difference with last time is zero."
+		MESSAGE="Difference with last time is zero."
 		if [[ $SPEAKLANG == "nl" ]]; then
 			MESSAGE="Er is geen verschil met de vorige keer."
 		fi
