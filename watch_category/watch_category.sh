@@ -50,7 +50,7 @@ if [[ $DESKTOPINT == "" ]]; then
 	DESKTOPINT="false"
 fi
 if [[ $USERNAME == "" ]]; then
-	USERNAME="smile"
+	#USERNAME="smile"
 fi
 
 function msg {
