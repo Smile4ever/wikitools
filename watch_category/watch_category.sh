@@ -49,9 +49,9 @@ fi
 if [[ $DESKTOPINT == "" ]]; then
 	DESKTOPINT="false"
 fi
-if [[ $USERNAME == "" ]]; then
+#if [[ $USERNAME == "" ]]; then
 	#USERNAME="smile"
-fi
+#fi
 
 function msg {
 	if [[ $USERNAME == "" ]]; then
