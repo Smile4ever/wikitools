@@ -34,3 +34,5 @@ By default, the script will ask for a username and a password when running for t
 The /data directory contains all temporary files when the script is executing. You can safely delete this subdirectory when the script has finished or terminated unexpectedly.
 
 The list-editedpages.txt keeps the history of the edits nocat.sh has made. It is advised you do not delete this file. The file is created if it does not exist after the first edit has been made.
+
+The script will execute itself every 5 minutes.
