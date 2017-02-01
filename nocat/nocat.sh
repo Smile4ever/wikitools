@@ -6,7 +6,10 @@
 
 #Needs curl, wget, jq, base64 (from coreutils), openssl, head, tail
 
+#Settings
 WIKIAPI="https://nl.wikipedia.org/w/api.php"
+EDIT="true"
+#End of settings block
 
 CONFIGPASSWORD="config/password.txt"
 CONFIGUSER="config/username.txt"
@@ -30,7 +33,6 @@ fi
 USERNAME=$(cat ${CONFIGUSER})
 USERPASS=$(cat ${CONFIGPASSWORD} | base64 --decode)
 cookie_jar="data/wikicj" #Will store file in wikifile
-EDIT="true"
 NOCAT=$(date +"%Y|%m|%d")
 NOCAT="
 {{nocat||${NOCAT}}}"
