@@ -8,6 +8,8 @@ Software:
 * wget and curl (yes, both)
 * jq
 * openssl
+* base64 (from coreutils)
+* head and tail
 
 Info:
 * valid username and password for wiki
