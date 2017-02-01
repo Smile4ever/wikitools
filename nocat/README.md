@@ -28,7 +28,7 @@ Also, EDIT needs to be set to true, otherwise the script won't edit pages
 After the steps above, just execute the script:
 
     ./nocat.sh
-    
+
 By default, the script will ask for a username and a password when running for the first time. It will remember these settings because they are stored in the /config subdirectory.
 
 The /data directory contains all temporary files when the script is executing. You can safely delete this subdirectory when the script has finished or terminated unexpectedly.
@@ -40,9 +40,9 @@ The script will execute itself every 5 minutes.
 Common problems
 ============
 
-* "Unable to login, is logintoken <deleted> correct?"
-	Have you encoded your password in config/password.txt with base64 encoding?
-	Is your password correct?
+* "Unable to login, is logintoken &lt;deleted&gt; correct?"
+    * Have you encoded your password in config/password.txt with base64 encoding?
+	* Is your password correct?
 
 * "data/edittoken.json: Permission denied"
-	Do you have write rights in the script directory?
+    * Do you have write rights in the script directory?
