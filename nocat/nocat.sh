@@ -228,6 +228,7 @@ do
 					--compressed \
 					--data-urlencode "title=${article}" \
 					--data-urlencode "nocreate=true" \
+					--data-urlencode "summary=+{{nocat}}" \
 					--data-urlencode "appendtext=${NOCAT}" \
 					--data-urlencode "token=${EDITTOKEN}" \
 					--request "POST" "${WIKIAPI}?action=edit&format=json")
