@@ -33,14 +33,15 @@ fi
 USERNAME=$(cat ${CONFIGUSER})
 USERPASS=$(cat ${CONFIGPASSWORD} | base64 --decode)
 cookie_jar="data/wikicj" #Will store file in wikifile
-NOCAT=$(date +"%Y|%m|%d")
-NOCAT="
-{{nocat||${NOCAT}}}"
 
 while true
 do
     date +"%T"
 	mkdir data 2>/dev/null
+
+	NOCAT=$(date +"%Y|%m|%d")
+	NOCAT="
+	{{nocat||${NOCAT}}}"
 
 	if [[ $EDIT == "true" ]]; then
 		echo "UTF8 check: ☠"
