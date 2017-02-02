@@ -41,7 +41,7 @@ do
 
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
-	{{nocat||${NOCAT}}}"
+{{nocat||${NOCAT}}}"
 
 	if [[ $EDIT == "true" ]]; then
 		echo "UTF8 check: ☠"
