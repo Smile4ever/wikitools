@@ -233,9 +233,16 @@ do
 					--data-urlencode "token=${EDITTOKEN}" \
 					--request "POST" "${WIKIAPI}?action=edit&format=json")
 				
-				echo "$CR" | jq .
+				ERRORINFO=$(echo $CR | jq '.error.info' 2>/dev/null)
+				if [[ $ERRORINFO == *"The page you specified doesn't exist."* ]]; then
+					echo "Skipping ${article}"
+				else
+					echo "$CR" | jq .
+					echo $articleClean >> $PAGES
+				fi 
+				
 				#TODO: add check
-				echo $articleClean >> $PAGES
+				
 			else
 				echo $articleClean >> $PAGES
 				echo "I would edit ${article}"
