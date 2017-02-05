@@ -39,6 +39,7 @@ do
     date +"%T"
 	mkdir data 2>/dev/null
 
+	RCSTART=$(date -d '2 hours ago' "+%Y-%m-%dT%H:%M:%S.000L")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
 
@@ -157,7 +158,7 @@ do
 	LISTEDITEDPAGES="list-editedpages.txt"
 
 	rm $PAGES 2>/dev/null
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json" -O data/recentchanges.json >/dev/null 2>&1
+	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -O data/recentchanges.json >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $RECENTCHANGESTXT
 
 	IFS=$'\n'
