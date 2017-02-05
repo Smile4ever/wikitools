@@ -39,7 +39,7 @@ do
     date +"%T"
 	mkdir data 2>/dev/null
 
-	RCSTART=$(date -d '2 hours ago' "+%Y-%m-%dT%H:%M:%S.000L")
+	RCSTART=$(date -d '2 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
 
