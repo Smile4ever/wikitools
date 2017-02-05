@@ -41,6 +41,7 @@ do
 
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
+
 {{nocat||${NOCAT}}}"
 
 	if [[ $EDIT == "true" ]]; then
