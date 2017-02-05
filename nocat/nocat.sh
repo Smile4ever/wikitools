@@ -170,7 +170,7 @@ do
 		#article="${article//\r/}"
 		
 		echo "Downloading category info for $articleClean.."
-		wget "https://nl.wikipedia.org/w/api.php?action=query&titles=$article&prop=categories&format=json" -O $CURRENTCATS >/dev/null 2>&1
+		wget "https://nl.wikipedia.org/w/api.php?action=query&titles=$article&prop=categories&format=json&clshow=!hidden" -O $CURRENTCATS >/dev/null 2>&1
 		
 		#cat $CURRENTCATS
 		#echo ""
@@ -180,7 +180,7 @@ do
 		COUNT=$(wc -l < $CURRENTCATSTXT)
 		COUNT=$(expr $COUNT - 1)
 		echo $COUNT categories
-		if [[ $COUNT -eq 0 ]]; then	
+		if [[ $COUNT -le 1 ]]; then	
 			if [[ $EDIT == "true" ]]; then
 				CR=$(curl -S \
 					--location \
@@ -212,7 +212,7 @@ do
 					continue
 				fi
 				
-				if [[ $CONTENT == *"[[Categor"* ]]; then
+				if [[ $CONTENT == *"[[Categor"* && $CONTENT != *":Wikipedia"* ]]; then
 					echo "Has already a category"
 					continue
 				fi
