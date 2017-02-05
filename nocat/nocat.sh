@@ -197,22 +197,27 @@ do
 				CONTENT=$(echo $CR | jq -r '.query.pages')
 				if [[ $CONTENT == *"{{nocat"* ]]; then
 					echo "{{nocat}} is already on this page"
-					continue;
+					continue
 				fi
 				
 				if [[ $CONTENT == *"{{nobots"* ]]; then
 					echo "{{nobots}} is on this page"
-					continue;
+					continue
 				fi
 				
 				if [[ $CONTENT == *"{{bots|deny=all"* ]]; then
 					echo "{{nobots}} is on this page"
-					continue;
+					continue
 				fi
 				
 				if [[ $CONTENT == *"[[Categor"* ]]; then
 					echo "Has already a category"
-					continue;
+					continue
+				fi
+				
+				if [[ $CONTENT == *"{{dp}}"* ]]; then
+					echo "This is a disambiguation page"
+					continue
 				fi
 				
 				echo "Editing ${article}"
