@@ -220,8 +220,13 @@ do
 					continue
 				fi
 				
-				if [[ $CONTENT == *"{{dp}}"* ]]; then
+				if [[ $CONTENT == *"{{dp"* ]]; then
 					echo "This is a disambiguation page"
+					continue
+				fi
+				
+				if [[ $CONTENT == *"{{nuweg"* ]] || [[ $CONTENT == *"{{speedy"* ]]; then
+					echo "Has been nominated for speedy deletion"
 					continue
 				fi
 				
