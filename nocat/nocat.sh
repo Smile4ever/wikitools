@@ -39,6 +39,7 @@ do
     date +"%T"
 	mkdir data 2>/dev/null
 
+	RCSTART=$(date -d '2 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
 
@@ -157,7 +158,7 @@ do
 	LISTEDITEDPAGES="list-editedpages.txt"
 
 	rm $PAGES 2>/dev/null
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json" -O data/recentchanges.json >/dev/null 2>&1
+	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -O data/recentchanges.json >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $RECENTCHANGESTXT
 
 	IFS=$'\n'
@@ -169,7 +170,7 @@ do
 		#article="${article//\r/}"
 		
 		echo "Downloading category info for $articleClean.."
-		wget "https://nl.wikipedia.org/w/api.php?action=query&titles=$article&prop=categories&format=json" -O $CURRENTCATS >/dev/null 2>&1
+		wget "https://nl.wikipedia.org/w/api.php?action=query&titles=$article&prop=categories&format=json&clshow=!hidden" -O $CURRENTCATS >/dev/null 2>&1
 		
 		#cat $CURRENTCATS
 		#echo ""
@@ -179,7 +180,7 @@ do
 		COUNT=$(wc -l < $CURRENTCATSTXT)
 		COUNT=$(expr $COUNT - 1)
 		echo $COUNT categories
-		if [[ $COUNT -eq 0 ]]; then	
+		if [[ $COUNT -le 1 ]]; then	
 			if [[ $EDIT == "true" ]]; then
 				CR=$(curl -S \
 					--location \
@@ -211,7 +212,7 @@ do
 					continue
 				fi
 				
-				if [[ $CONTENT == *"[[Categor"* ]]; then
+				if [[ $CONTENT == *"[[Categor"* && $CONTENT != *":Wikipedia"* ]]; then
 					echo "Has already a category"
 					continue
 				fi
