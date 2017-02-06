@@ -177,10 +177,11 @@ do
 
 		#Key parsen met jq:
 		jq -r '.query.pages | .. | .title? | select(.)' $CURRENTCATS > $CURRENTCATSTXT
-		COUNT=$(wc -l < $CURRENTCATSTXT)
-		COUNT=$(expr $COUNT - 1)
-		echo $COUNT categories
-		if [[ $COUNT -le 1 ]]; then	
+		COUNT=$(cat $CURRENTCATSTXT | grep -v ":Wikipedia:" | wc -l)
+		COUNTHIDDEN=$(cat $CURRENTCATSTXT | grep ":Wikipedia:" | wc -l)
+		COUNT=$(expr $COUNT - 1 + $COUNTHIDDEN)
+		echo $COUNT categories, including $COUNTHIDDEN hidden categories
+		if [[ $COUNT -eq 0 ]]; then	
 			if [[ $EDIT == "true" ]]; then
 				CR=$(curl -S \
 					--location \
@@ -212,7 +213,7 @@ do
 					continue
 				fi
 				
-				if [[ $CONTENT == *"[[Categor"* && $CONTENT != *":Wikipedia"* ]]; then
+				if [[ $CONTENT == *"[[Categor"* && $CONTENT != *":Wikipedia:"* ]]; then
 					echo "Has already a category"
 					continue
 				fi
