@@ -177,11 +177,13 @@ do
 
 		#Key parsen met jq:
 		jq -r '.query.pages | .. | .title? | select(.)' $CURRENTCATS > $CURRENTCATSTXT
-		COUNT=$(cat $CURRENTCATSTXT | grep -v ":Wikipedia:" | wc -l)
+		COUNTVISIBLE=$(cat $CURRENTCATSTXT | grep -v ":Wikipedia:" | wc -l)
+		COUNTVISIBLE=$(expr $COUNTVISIBLE - 1)
 		COUNTHIDDEN=$(cat $CURRENTCATSTXT | grep ":Wikipedia:" | wc -l)
-		COUNT=$(expr $COUNT - 1 + $COUNTHIDDEN)
-		echo $COUNT categories, including $COUNTHIDDEN hidden categories
-		if [[ $COUNT -eq 0 ]]; then	
+		COUNTALL=$(expr $COUNTVISIBLE + $COUNTHIDDEN)
+		echo $COUNTALL categories, including $COUNTHIDDEN hidden categories
+		
+		if [[ $COUNTVISIBLE -eq 0 ]]; then	
 			if [[ $EDIT == "true" ]]; then
 				CR=$(curl -S \
 					--location \
