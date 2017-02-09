@@ -225,7 +225,7 @@ do
 					continue
 				fi
 				
-				if [[ $CONTENT == *"{{nuweg"* ]] || [[ $CONTENT == *"{{speedy"* ]]; then
+				if [[ $CONTENT == *"{{nuweg"* ]] || [[ $CONTENT == *"{{speedy"* ]] || [[ $CONTENT == *"{{delete"* ]]; then
 					echo "Has been nominated for speedy deletion"
 					continue
 				fi
