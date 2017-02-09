@@ -254,6 +254,8 @@ do
 				else
 					echo "$CR" | jq .
 					echo $articleClean >> $PAGES
+					sleep 60
+					echo "Waiting 60 seconds"
 				fi 
 				
 				#TODO: add check
