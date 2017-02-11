@@ -230,6 +230,11 @@ do
 					continue
 				fi
 				
+				if [[ $CONTENT == *"{{meebezig"* ]]; then
+					echo "Is being worked on"
+					continue
+				fi
+				
 				echo "Editing ${article}"
 				
 				CR=$(curl -S \
