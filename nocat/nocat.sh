@@ -151,6 +151,7 @@ do
 			echo "Edit token is: $EDITTOKEN"
 		else
 			echo "Edit token not set."
+			echo "EDITTOKEN was {EDITTOKEN}"
 			exit
 		fi
 	fi
