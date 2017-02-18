@@ -207,27 +207,27 @@ do
 
 				#echo "$CR" | jq .
 				CONTENT=$(echo $CR | jq -r '.query.pages')
-				if [[ $CONTENT == *"{{nocat"* ]]; then
+				if [[ $CONTENT == *"{{nocat"* ]] || [[ $CONTENT == *"{{Nocat"* ]]; then
 					echo "{{nocat}} is already on this page"
 					continue
 				fi
 				
-				if [[ $CONTENT == *"{{nobots"* ]]; then
+				if [[ $CONTENT == *"{{nobots"* ]] || [[ $CONTENT == *"{{Nobots"* ]]; then
 					echo "{{nobots}} is on this page"
 					continue
 				fi
 				
-				if [[ $CONTENT == *"{{bots|deny=all"* ]]; then
+				if [[ $CONTENT == *"{{bots|deny=all"* ]] || [[ $CONTENT == *"{{Bots|deny=all"* ]]; then
 					echo "{{nobots}} is on this page"
 					continue
 				fi
 				
-				if [[ $CONTENT == *"[[Categor"* && $CONTENT != *":Wikipedia:"* ]]; then
+				if [[ $CONTENT == *"[[Categor"* && $CONTENT != *":Wikipedia:"* ]] || [[ $CONTENT == *"[[categor"* && $CONTENT != *":wikipedia:"* ]]; then
 					echo "Has already a category"
 					continue
 				fi
 				
-				if [[ $CONTENT == *"{{dp"* ]]; then
+				if [[ $CONTENT == *"{{dp"* ]] || [[ $CONTENT == *"{{Dp"* ]]; then
 					echo "This is a disambiguation page"
 					continue
 				fi
@@ -237,7 +237,7 @@ do
 					continue
 				fi
 				
-				if [[ $CONTENT == *"{{meebezig"* ]]; then
+				if [[ $CONTENT == *"{{meebezig"* ]] || [[ $CONTENT == *"{{Meebezig"* ]]; then
 					echo "Is being worked on"
 					continue
 				fi
