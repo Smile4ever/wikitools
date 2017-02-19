@@ -162,12 +162,6 @@ do
 	CURRENTCATSTXT="data/current-categories.txt"
 	PAGES="list-pages.txt"
 	LISTEDITEDPAGES="list-editedpages.txt"
-	
-	wget "https://nl.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -O data/date.json >/dev/null 2>&1
-	
-	TODATE=$(date -d '90 minutes ago' "+%s")
-	COND=$(grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' data/date.json)
-	CONDUNIX=$(date -d "$COND" '+%s')
 
 	rm $PAGES 2>/dev/null
 	# To check only new pages, remove "edit" from rctype
@@ -195,6 +189,12 @@ do
 		COUNTHIDDEN=$(cat $CURRENTCATSTXT | grep ":Wikipedia:" | wc -l)
 		COUNTALL=$(expr $COUNTVISIBLE + $COUNTHIDDEN)
 		echo $COUNTALL categories, including $COUNTHIDDEN hidden categories
+		
+		wget "https://nl.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -O data/date.json >/dev/null 2>&1
+	
+		TODATE=$(date -d '90 minutes ago' "+%s")
+		COND=$(grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' data/date.json)
+		CONDUNIX=$(date -d "$COND" '+%s')
 		
 		if [ $CONDUNIX -gt $TODATE ]; then
 			echo "Bot has stopped, because it's talkpage has been edited in the last 30 minutes."
