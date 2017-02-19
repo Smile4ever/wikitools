@@ -158,6 +158,7 @@ do
 
 	RECENTCHANGES="data/recentchanges.json"
 	RECENTCHANGESTXT="data/recentchanges.txt"
+	RECENTLOGS="data/recentlogs.json"
 	CURRENTCATS="data/current-categories.json"
 	CURRENTCATSTXT="data/current-categories.txt"
 	PAGES="list-pages.txt"
@@ -170,10 +171,12 @@ do
 	CONDUNIX=$(date -d "$COND" '+%s')
 
 	rm $PAGES 2>/dev/null
-	# To check only new pages, remove "edit" from rctype
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new|edit&rclimit=100&rcshow=!redirect&format=json&rcstart=${RCSTART}" -O data/recentchanges.json >/dev/null 2>&1
+	
+	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -O $RECENTCHANGES >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $RECENTCHANGESTXT
-
+	wget "https://nl.wikipedia.org/w/api.php?action=query&list=logevents&letype=move&lelimit=50&format=json" -O $RECENTLOGS >/dev/null 2>&1
+	jq -r ".query.logevents[] | .title" $RECENTLOGS | grep -v ":" >> $RECENTCHANGESTXT
+	
 	IFS=$'\n'
 	for article in $(cat $RECENTCHANGESTXT | tr -d '\r')    
 	do
