@@ -170,7 +170,8 @@ do
 	CONDUNIX=$(date -d "$COND" '+%s')
 
 	rm $PAGES 2>/dev/null
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -O data/recentchanges.json >/dev/null 2>&1
+	# To check only new pages, remove "edit" from rctype
+	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new|edit&rclimit=100&rcshow=!redirect&format=json&rcstart=${RCSTART}" -O data/recentchanges.json >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $RECENTCHANGESTXT
 
 	IFS=$'\n'
