@@ -258,6 +258,16 @@ do
 					continue
 				fi
 				
+				if [[ $CONTENT == *"#doorverwijzing"* ]] || [[ $CONTENT == *"#DOORVERWIJZING"* ]]; then
+					echo "Is a redirect page"
+					continue
+				fi
+				
+				if [[ $CONTENT == *"#redirect"* ]] || [[ $CONTENT == *"#REDIRECT"* ]]; then
+					echo "Is a redirect page (2)"
+					continue
+				fi
+				
 				echo "Editing ${article}"
 				
 				CR=$(curl -S \
