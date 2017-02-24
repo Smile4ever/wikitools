@@ -223,7 +223,7 @@ do
 
 				#echo "$CR" | jq .
 				CONTENT=$(echo $CR | jq -r '.query.pages')
-				if [[ $CONTENT == *"missing":"* ]]; then
+				if [[ $CONTENT == *'missing":'* ]]; then
 					echo "Malformed title"
 					continue
 				fi
