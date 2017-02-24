@@ -223,6 +223,11 @@ do
 
 				#echo "$CR" | jq .
 				CONTENT=$(echo $CR | jq -r '.query.pages')
+				if [[ $CONTENT == *"missing":"* ]]; then
+					echo "Malformed title"
+					continue
+				fi
+				
 				if [[ $CONTENT == *"{{nocat"* ]] || [[ $CONTENT == *"{{Nocat"* ]]; then
 					echo "{{nocat}} is already on this page"
 					continue
