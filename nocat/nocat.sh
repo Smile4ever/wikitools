@@ -187,12 +187,14 @@ do
 
 		#Key parsen met jq:
 		jq -r '.query.pages | .. | .title? | select(.)' $CURRENTCATS > $CURRENTCATSTXT
+		echo "Looking for categories"
 		COUNTVISIBLE=$(cat $CURRENTCATSTXT | grep -v ":Wikipedia:" | wc -l)
 		COUNTVISIBLE=$(expr $COUNTVISIBLE - 1)
 		COUNTHIDDEN=$(cat $CURRENTCATSTXT | grep ":Wikipedia:" | wc -l)
 		COUNTALL=$(expr $COUNTVISIBLE + $COUNTHIDDEN)
 		echo $COUNTALL categories, including $COUNTHIDDEN hidden categories
 		
+		echo "Checking if talkpage has been edited"
 		wget "https://nl.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -O data/date.json >/dev/null 2>&1
 	
 		TODATE=$(date -d '90 minutes ago' "+%s")
