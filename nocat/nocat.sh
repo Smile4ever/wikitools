@@ -225,8 +225,21 @@ do
 
 				#echo "$CR" | jq .
 				CONTENT=$(echo $CR | jq -r '.query.pages')
+				
 				if [[ $CONTENT == *'missing":'* ]]; then
 					echo "Malformed title"
+					continue
+				fi
+				
+				if [[ $CONTENT == *'invalidreason'* ]]; then
+					echo "Invalid reason, content was"
+					echo $CONTENT
+					continue
+				fi
+				
+				CONTENTLENGTH=$(echo $CONTENT | wc -l)
+				if [[ $CONTENTLENGTH -eq 0 ]] || [[ $CONTENTLENGTH -eq 1 ]]; then
+					echo "Skipping page with CONTENTLENGTH ${CONTENTLENGTH} (redirect or vandalism page)"
 					continue
 				fi
 				
