@@ -237,7 +237,7 @@ do
 					continue
 				fi
 				
-				CONTENTLENGTH=$(echo $CONTENT | wc -l)
+				CONTENTLENGTH=$(echo ${CONTENT} | wc -l)
 				if [[ $CONTENTLENGTH -eq 0 ]] || [[ $CONTENTLENGTH -eq 1 ]]; then
 					echo "Skipping page with CONTENTLENGTH ${CONTENTLENGTH} (redirect or vandalism page)"
 					continue
