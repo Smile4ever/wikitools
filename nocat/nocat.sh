@@ -43,15 +43,16 @@ while true
 do
     date +"%T"
 	mkdir data 2>/dev/null
-
-	RCSTART=$(date -d '2 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
+	
+	echo "Checking RCSTART"
+	RCSTART=$(date -d '3 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
 
 {{nocat||${NOCAT}}}"
 
 	if [[ $EDIT == "true" ]]; then
-		echo "UTF8 check: ☠"
+		echo "UTF8 check: ?"
 		#################login
 		echo "Logging into $WIKIAPI as $USERNAME..."
 
@@ -85,8 +86,9 @@ do
 
 
 		if [ "$TOKEN" == "null" ]; then
-			echo "Getting a login token failed."
-			exit	
+			echo "Getting a login token failed. Retrying..."
+			sleep 5
+			done	
 		else
 			echo "Login token is $TOKEN"
 			echo "-----"
@@ -166,9 +168,11 @@ do
 
 	rm $PAGES 2>/dev/null
 	
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -O $RECENTCHANGES >/dev/null 2>&1
+	echo "Fetching page data"
+
+	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -T 60 -O $RECENTCHANGES >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $RECENTCHANGESTXT
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=logevents&letype=move&lelimit=50&format=json" -O $RECENTLOGS >/dev/null 2>&1
+	wget "https://nl.wikipedia.org/w/api.php?action=query&list=logevents&letype=move&lelimit=50&format=json" -T 60 -O $RECENTLOGS >/dev/null 2>&1
 	jq -r ".query.logevents[] | .title" $RECENTLOGS | grep -v ":" >> $RECENTCHANGESTXT
 	
 	IFS=$'\n'
@@ -179,25 +183,24 @@ do
 		article="${article// /_}"
 		#article="${article//\r/}"
 		
-		echo "Downloading category info for $articleClean.."
-		wget "https://nl.wikipedia.org/w/api.php?action=query&titles=$article&prop=categories&format=json&clshow=!hidden" -O $CURRENTCATS >/dev/null 2>&1
-		
+		wget "https://nl.wikipedia.org/w/api.php?action=query&titles=$article&prop=categories&format=json&clshow=!hidden" -T 60 -O $CURRENTCATS >/dev/null 2>&1
+	
 		#cat $CURRENTCATS
 		#echo ""
 
 		#Key parsen met jq:
 		jq -r '.query.pages | .. | .title? | select(.)' $CURRENTCATS > $CURRENTCATSTXT
-		echo "Looking for categories"
 		COUNTVISIBLE=$(cat $CURRENTCATSTXT | grep -v ":Wikipedia:" | wc -l)
 		COUNTVISIBLE=$(expr $COUNTVISIBLE - 1)
 		COUNTHIDDEN=$(cat $CURRENTCATSTXT | grep ":Wikipedia:" | wc -l)
 		COUNTALL=$(expr $COUNTVISIBLE + $COUNTHIDDEN)
-		echo $COUNTALL categories, including $COUNTHIDDEN hidden categories
+		echo $COUNTALL categories, including $COUNTHIDDEN hidden categories on $articleClean
 		
-		echo "Checking if talkpage has been edited"
-		wget "https://nl.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -O data/date.json >/dev/null 2>&1
+		# Talkpage edits
+		echo "Fetching talkpage edits"
+		wget "https://nl.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -T 60 -O data/date.json >/dev/null 2>&1
 	
-		TODATE=$(date -d '90 minutes ago' "+%s")
+		TODATE=$(date -d '150 minutes ago' "+%s")
 		COND=$(grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' data/date.json)
 		CONDUNIX=$(date -d "$COND" '+%s')
 		
@@ -209,7 +212,9 @@ do
 		
 		if [[ $COUNTVISIBLE -eq 0 ]]; then	
 			if [[ $EDIT == "true" ]]; then
+				echo "Fetching CURL"
 				article=$( rawurlencode "$article" )
+
 				CR=$(curl -S \
 					--location \
 					--retry 2 \
@@ -221,27 +226,16 @@ do
 					--header "Accept-Language: en-us" \
 					--header "Connection: keep-alive" \
 					--compressed \
-					--request "GET" "${WIKIAPI}?action=query&prop=revisions&titles=${article}&rvprop=timestamp|user|comment|content&format=json")
+					--request "GET" "${WIKIAPI}?action=query&prop=revisions&titles=${article}&rvprop=timestamp|user|comment|content&format=json") && break
 
 				#echo "$CR" | jq .
-				CONTENT=$(echo $CR | jq -r '.query.pages')
+				CONTENT=$(echo "$CR"|jq -r '.query.pages')
 				
+				#Checks the content of the page and doesn't place a {{nocat}} template if one of these strings are in the json
 				if [[ $CONTENT == *'missing":'* ]]; then
-					echo "Malformed title"
+					echo "Malformed/deleted article"
 					continue
-				fi
-				
-				if [[ $CONTENT == *'invalidreason'* ]]; then
-					echo "Invalid reason, content was"
-					echo $CONTENT
-					continue
-				fi
-
-				CONTENTLENGTH=$(echo ${CONTENT} | grep -o "\n" | wc -l)
-				if [[ $CONTENTLENGTH -eq 0 ]] || [[ $CONTENTLENGTH -eq 1 ]]; then
-					echo "Skipping page with CONTENTLENGTH ${CONTENTLENGTH} (redirect or vandalism page)"
-					continue
-				fi
+				fi				
 				
 				if [[ $CONTENT == *"{{nocat"* ]] || [[ $CONTENT == *"{{Nocat"* ]]; then
 					echo "{{nocat}} is already on this page"
@@ -273,22 +267,19 @@ do
 					continue
 				fi
 				
-				if [[ $CONTENT == *"{{meebezig"* ]] || [[ $CONTENT == *"{{Meebezig"* ]]; then
+				if [[ $CONTENT == *"{{meebezig"* ]] || [[ $CONTENT == *"{{Meebezig"* ]] || [[ $CONTENT == *"{{Wiu2"* ]] || [[ $CONTENT == *"{{wiu2"* ]]; then
 					echo "Is being worked on"
 					continue
 				fi
 				
-				if [[ $CONTENT == *"#doorverwijzing"* ]] || [[ $CONTENT == *"#DOORVERWIJZING"* ]]; then
+				if [[ $CONTENT == *"#doorverwijzing"* ]] || [[ $CONTENT == *"#DOORVERWIJZING"* ]] || [[ $CONTENT == *"#Doorverwijzing"* ]] || [[ $CONTENT == *"#redirect"* ]] || [[ $CONTENT == *"#REDIRECT"* ]] || [[ $CONTENT == *"#Redirect"* ]]; then
 					echo "Is a redirect page"
 					continue
 				fi
 				
-				if [[ $CONTENT == *"#redirect"* ]] || [[ $CONTENT == *"#REDIRECT"* ]]; then
-					echo "Is a redirect page (2)"
-					continue
-				fi
-				
 				echo "Editing ${article}"
+
+				echo "Adding {{nocat}} template"
 				
 				CR=$(curl -S \
 					--location \
@@ -312,11 +303,9 @@ do
 				else
 					echo "$CR" | jq .
 					echo $articleClean >> $PAGES
-					echo "Waiting 60 seconds"
-					sleep 60
+					echo "Waiting 5 seconds"
+					sleep 5
 				fi 
-				
-				#TODO: add check
 				
 			else
 				echo $articleClean >> $PAGES
@@ -326,8 +315,7 @@ do
 		
 		#Show the categories without the first line, which is the article's title
 		#tail -n +2 $CURRENTCATSTXT
-		
-		echo "------------------"
+
 	#	sizediff=$(stat -c%s diff.txt)
 		
 	done
@@ -337,7 +325,6 @@ do
 	#rm $CURRENTCATS
 	#rm $CURRENTCATSTXT
 
-	
 	EDITEDPAGES=$(cat $PAGES 2>/dev/null)
 	if [[ $EDITEDPAGES == "" ]]; then
 		echo "I've edited no pages."
@@ -361,7 +348,6 @@ do
 	rm -rf data
 	
 	CURDATE=$(date +"%T")
-	echo "${CURDATE} Waiting 5 minutes.."
-    sleep 300
+	echo "${CURDATE} Waiting 15 minutes.."
+    sleep 900
 done
-
