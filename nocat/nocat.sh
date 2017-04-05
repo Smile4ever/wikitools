@@ -52,7 +52,7 @@ do
 {{nocat||${NOCAT}}}"
 
 	if [[ $EDIT == "true" ]]; then
-		echo "UTF8 check: ?"
+		echo "UTF8 check: ☠"
 		#################login
 		echo "Logging into $WIKIAPI as $USERNAME..."
 
@@ -88,7 +88,7 @@ do
 		if [ "$TOKEN" == "null" ]; then
 			echo "Getting a login token failed. Retrying..."
 			sleep 5
-			done	
+			continue
 		else
 			echo "Login token is $TOKEN"
 			echo "-----"
@@ -226,7 +226,7 @@ do
 					--header "Accept-Language: en-us" \
 					--header "Connection: keep-alive" \
 					--compressed \
-					--request "GET" "${WIKIAPI}?action=query&prop=revisions&titles=${article}&rvprop=timestamp|user|comment|content&format=json") && break
+					--request "GET" "${WIKIAPI}?action=query&prop=revisions&titles=${article}&rvprop=timestamp|user|comment|content&format=json")
 
 				#echo "$CR" | jq .
 				CONTENT=$(echo "$CR"|jq -r '.query.pages')
