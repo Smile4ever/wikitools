@@ -277,6 +277,31 @@ do
 					continue
 				fi
 				
+				CRCHECK=$(curl -S \
+					--location \
+					--retry 2 \
+					--retry-delay 5\
+					--cookie $cookie_jar \
+					--cookie-jar $cookie_jar \
+					--user-agent "nocat.sh by Smile4ever" \
+					--keepalive-time 60 \
+					--header "Accept-Language: en-us" \
+					--header "Connection: keep-alive" \
+					--compressed \
+					--request "GET" "${WIKIAPI}?action=query&prop=revisions&titles=${article}&rvprop=timestamp|user|comment|content&format=json")
+
+				CONTENTCHECK=$(echo "$CRCHECK"|jq -r '.query.pages')
+				
+				if [[ $CONTENTCHECK == *"#doorverwijzing"* ]] || [[ $CONTENTCHECK == *"#DOORVERWIJZING"* ]] || [[ $CONTENTCHECK == *"#Doorverwijzing"* ]] || [[ $CONTENTCHECK == *"#redirect"* ]] || [[ $CONTENTCHECK == *"#REDIRECT"* ]] || [[ $CONTENTCHECK == *"#Redirect"* ]]; then
+					echo "Is a redirect page, 2nd check"
+					continue
+				fi
+				
+				if [[ $CONTENTCHECK == *"{{dp"* ]] || [[ $CONTENTCHECK == *"{{Dp"* ]]; then
+					echo "This is a disambiguation page, 2nd check"
+					continue
+				fi
+				
 				echo "Editing ${article}"
 
 				echo "Adding {{nocat}} template"
