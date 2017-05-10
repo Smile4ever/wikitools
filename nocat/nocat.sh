@@ -257,6 +257,11 @@ do
 					continue
 				fi
 				
+				if [[ $CONTENT == *"Categorie:Wikipedia:Doorverwijspagina"* ]]; then
+					echo "Has already the category Categorie:Wikipedia:Doorverwijspagina"
+					continue
+				fi
+				
 				if [[ $CONTENT == *"{{dp"* ]] || [[ $CONTENT == *"{{Dp"* ]]; then
 					echo "This is a disambiguation page"
 					continue
