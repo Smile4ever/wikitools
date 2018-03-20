@@ -1,0 +1,72 @@
+Users by edits
+----------
+
+users_by_edits is a script to generate a list of users including user count on a MediaWiki website, using the MediaWiki API. Sorting and filtering of bot accounts is done automatically. The generated data can be further processed with jq if desired.
+
+Time is in UTC.
+
+Requirements
+------------
+* wget
+* jq
+* uniq
+
+For big wikis, a 64 bit computer and up to 8 gigabytes of free RAM is recommended.
+
+Usage
+------
+Create the list:
+  ./users_by_edits.sh
+ 
+This will create the list for nl.wikipedia.org. Depending on your internet connection and the number of users on the wiki, this can take from a few minutes to a few hours. The list will be saved as "usernames-all.tsv".
+
+While running the script, it will display its progress by showing the next user (+499) that will be retrieved.
+
+After that, it will retrieve first edit datetime, last edit datetime and whether the user is a bot (in the past or currently).
+
+Configuration
+----------------------
+
+You can specify which wiki to generate the list for:
+  PROTOCOL="https://" WIKI="en.wikipedia.org" ./users_by_edits.sh
+
+These are the default values:
+
+* PROTOCOL="https://"
+* WIKI="nl.wikipedia.org"
+
+Output
+------
+Example output (usernames-all.tsv):
+
+	Aadekker59	1
+	Aadelij	5
+	Aadelse	3
+	Aadjanson	43
+	Aadjanson~enwiki	1
+	Aadje	20
+	Aadje2	1
+	Aadje93	2
+	Aadjuh	6
+
+If you want plain JSON, you can look at the file sorted-data.json, formatted as follows:
+
+	[{
+	  "name": "!-!--:annekelol:--!-!",
+	  "editcount": 1
+	},
+	{
+	  "name": "!Jeroen!",
+	  "editcount": 4
+	}]
+
+If you need to have the information about edit dates as well, look at expanded-sorted-data.json.
+    
+The output is also processed to a wikitext list. See the files with "wikitext" in the name for that. It is similar to this:
+
+    # {{intern|1=title=Gebruiker:MoiraMoira|2=MoiraMoira}} (bewerkingen: 488447)
+    # {{intern|1=title=Gebruiker:ErikvanB|2=ErikvanB}} (bewerkingen: 390474)
+    # {{intern|1=title=Gebruiker:Romaine|2=Romaine}} (bewerkingen: 358678)
+    # {{intern|1=title=Gebruiker:RonaldB|2=RonaldB}} (bewerkingen: 315097)
+    # {{intern|1=title=Gebruiker:Rudolphous|2=Rudolphous}} (bewerkingen: 208952)
+    # {{intern|1=title=Gebruiker:Michiel1972|2=Michiel1972}} (bewerkingen: 195575)
