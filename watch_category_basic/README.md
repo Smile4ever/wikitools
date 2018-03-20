@@ -6,9 +6,9 @@ Requirements
 ------------
 * wget
 * jq
-* xdg-open (optional, needed for bot)
+* xdg-open (xdg-utils) (optional, needed for bot)
 * notify-send (libnotify) (optional)
-* watch
+* watch (needed for checking more than once)
 * xdotool (needed for bot)
 
 Usage

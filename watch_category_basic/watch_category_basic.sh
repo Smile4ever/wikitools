@@ -35,7 +35,7 @@ date +"%T"
 rm api.php* 2>/dev/null
 mv result.txt prev.txt 2>/dev/null
 PREV=`cat prev.txt`
-wget --user-agent="watch_category tool by Smile4ever" "$PROTOCOL$WIKI/w/api.php?action=query&list=categorymembers&cmtitle=$CATEGORY&format=json&cmlimit=500" 2&>/dev/null
+wget --user-agent="watch_category tool by Smile4ever" "$PROTOCOL$WIKI/w/api.php?action=query&list=categorymembers&cmtitle=$CATEGORY&format=json&aulimit=500" 2&>/dev/null
 
 size=$(stat -c%s api.php*)
 empty=$(stat -c%s empty.json)
@@ -63,6 +63,7 @@ if [[ "$sizediff" -gt 1 ]]; then
 			while read article
 			do
 				xdg-open "$PROTOCOL$WIKI/wiki/$article"
+				sleep 5
 			done < diff.txt
 		else
 			xdg-open "$PROTOCOL$WIKI/wiki/$CATEGORY"
