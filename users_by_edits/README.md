@@ -5,7 +5,7 @@ users_by_edits is a script to generate a list of users including user count on a
 
 Time is in UTC.
 
-Data that has previously been generated can be found here: https://github.com/Smile4ever/wikistatsdata
+Data that has previously been generated can be found here: ftp://itsafeature.org/users_by_edits
 
 Requirements
 ------------
