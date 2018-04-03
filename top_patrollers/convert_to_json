@@ -1,0 +1,53 @@
+#! /usr/bin/env ruby
+#
+# Converts stdin columns to a JSON array of hashes
+#
+# Installation : Save as convert_to_json, make it executable and put it somewhere in PATH. Ruby must be installed
+#
+# Examples :
+#
+# netstat -a | grep CLOSE_WAIT | convert_to_json 1,3 name,other
+# ls -l | convert_to_json
+# ls -l | convert_to_json 6,7,8,9
+# ls -l | convert_to_json 6,7,8,9 month,day,time,name
+# convert_to_json 1,2 time,value ";" < some_file.csv
+#
+#
+# http://stackoverflow.com/questions/40246134/convert-arbitrary-output-to-json-by-column-in-the-terminal
+
+require 'json'
+
+script_name = File.basename(__FILE__)
+syntax = "Syntax : command_which_outputs_columns | #{script_name} column1_id,column2_id,...,columnN_id column1_name,column2_name,...,columnN_name delimiter"
+
+
+if $stdin.tty? or $stdin.closed? then
+  $stderr.puts syntax
+else
+  if ARGV[2]
+    delimiter = ARGV[2]
+    $stderr.puts "#{script_name} : Using #{delimiter} as delimiter"
+  else
+    #delimiter = /\s+/
+    delimiter = "\t"
+  end
+
+  column_ids = (ARGV[0] || "").split(',').map{|column_id| column_id.to_i-1}
+  column_names = (ARGV[1] || "").split(',')
+
+  results = []
+  $stdin.each do |stdin_line|
+    if column_ids.empty?
+      values = stdin_line.strip.split(delimiter)
+    else
+      values = stdin_line.strip.split(delimiter).values_at(*column_ids)
+    end
+    line_hash=Hash.new
+    values.each_with_index.each{|value,i|
+      colum_name = column_names[i] || "column#{(column_ids[i] || i)+1}"
+      line_hash[colum_name]=value.strip
+    }
+    results<<line_hash
+  end
+  puts JSON.pretty_generate(results)
+end
