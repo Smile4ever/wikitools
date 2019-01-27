@@ -32,6 +32,7 @@ SLEEPDURATION=3600 #each hour
 
 while true; do
 	SNAPSHOT=`date +"%Y%m%d%H%M%S"`
+	SNAPSHOTHUMAN=`date +"%c"`
 	mkdir "$DATADIRECTORY/$SNAPSHOT"
 
 	echo "Making snapshot $SNAPSHOT for $CATEGORY.."
@@ -49,7 +50,7 @@ while true; do
 
 		URL="$PROTOCOL$WIKI/w/api.php?action=query&list=categorymembers&cmtitle=$CATEGORY&format=json&cmlimit=500&cmcontinue=$CMFROM"
 		wget --user-agent="category_stats tool by Smile4ever" "$URL" 2&>/dev/null
-		CMFROM=`jq -r '.continue.cmcontinue' api.php*` #cmcontinue
+		CMFROM=`jq -r '.continue.cmcontinue' api.php*`
 
 		size=$(stat -c%s api.php*)
 		empty=$(stat -c%s empty.json)
@@ -70,41 +71,50 @@ while true; do
 	cp list.txt "$DATADIRECTORY/$SNAPSHOT/list.txt"
 
 	# Make diff
-	grep -v -f prev.txt list.txt > diff.txt
+	comm -13 <(sort prev.txt) <(sort list.txt) > diff-new.txt # New lines
+	comm -13 <(sort list.txt) <(sort prev.txt) > diff-gone.txt # Disappeared lines
+
+	#grep -v -f prev.txt list.txt > diff-new.txt
 
 	# Copy list
-	cp diff.txt "$DATADIRECTORY/$SNAPSHOT/diff.txt"
+	cp diff-new.txt "$DATADIRECTORY/$SNAPSHOT/diff-new.txt"
+	cp diff-gone.txt "$DATADIRECTORY/$SNAPSHOT/diff-gone.txt"
 
 	# Copy line count
 	LISTCOUNT=`wc -l list.txt | grep -o "[0-9]\+"`
 	echo $LISTCOUNT > "$DATADIRECTORY/$SNAPSHOT/list-count.txt"
-	DIFFCOUNT=`wc -l diff.txt | grep -o "[0-9]\+"`
-	echo $DIFFCOUNT > "$DATADIRECTORY/$SNAPSHOT/diff-count.txt"
-
+	DIFFNEWCOUNT=`wc -l diff-new.txt | grep -o "[0-9]\+"`
+	echo $DIFFNEWCOUNT > "$DATADIRECTORY/$SNAPSHOT/diff-new-count.txt"
+	DIFFGONECOUNT=`wc -l diff-gone.txt | grep -o "[0-9]\+"`
+	echo $DIFFGONECOUNT > "$DATADIRECTORY/$SNAPSHOT/diff-gone-count.txt"
+	
 	# End run
 	end=`date +%s`
 	RUNTIME=$((end-start))
 
 	# Display results
 	echo ""
+	echo "$SNAPSHOTHUMAN"
+	echo ""
 	echo "Your data is stored in $DATADIRECTORY/$SNAPSHOT"
 	echo ""
 	echo "Total items : $LISTCOUNT"
-	echo "New items   : $DIFFCOUNT"
+	echo "  New        : $DIFFNEWCOUNT"
+	echo "  Removed    : $DIFFNEWCOUNT"
 	echo "Run time    : $RUNTIME"
 	echo ""
 	echo "Next run in $SLEEPDURATION seconds"
 
-	#sizediff=$(stat -c%s diff.txt)
-	#result=`cat diff.txt`
+	#sizediff=$(stat -c%s diff-new.txt)
+	#result=`cat diff-new.txt`
 
 	#if [[ "$sizediff" -gt 1 ]]; then
 	#	if [ "$PREV" != "$result" ]; then
-	#		wc -l diff.txt | grep -o "[0-9]\+"
+	#		wc -l diff-new.txt | grep -o "[0-9]\+"
 	#			while read article
 	#		do
 	#			echo "New article: $article"
-	#		done < diff.txt
+	#		done < diff-new.txt
 	#	else
 	#		echo "No differences compared to last time"
 	#	fi
@@ -112,7 +122,8 @@ while true; do
 	#	echo "Difference with last time is zero"
 	#fi
 
-	rm diff.txt
+	rm diff-new.txt
+	rm diff-gone.txt
 	rm api.php*
 	
 	sleep $SLEEPDURATION
