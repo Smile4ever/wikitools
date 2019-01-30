@@ -9,8 +9,9 @@ Requirements
 
 Usage
 ------
-Check every hour and save data in /data/run:
-  DATADIRECTORY=/data/run SLEEPDURATION=3600 ./category_stats.sh
+Check every hour and save data in /data/wikistatsdata/category_stats:
+
+  DATADIRECTORY=/data/wikistatsdata/category_stats SLEEPDURATION=3600 ./category_stats.sh
 
 Notes
 -----

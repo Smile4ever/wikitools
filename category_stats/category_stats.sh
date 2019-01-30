@@ -7,6 +7,9 @@
 # * Differences in page titles compared to the last run
 # * Count of differences in page titles
 
+# Although there are multiple methods to achieve the counting, this one is thought to be the most accurate
+# Even MediaWiki software doesn't count well for large categories
+
 # Change this or use command line parameters
 if [[ $CATEGORY == "" ]]; then
 	CATEGORY="Categorie:Wikipedia:Onbereikbare externe link"
@@ -81,11 +84,14 @@ while true; do
 	cp diff-gone.txt "$DATADIRECTORY/$SNAPSHOT/diff-gone.txt"
 
 	# Copy line count
-	LISTCOUNT=`wc -l list.txt | grep -o "[0-9]\+"`
+	#LISTCOUNT=`wc -l list.txt | grep -o "[0-9]\+"`
+	LISTCOUNT=`wc -l < list.txt)`
 	echo $LISTCOUNT > "$DATADIRECTORY/$SNAPSHOT/list-count.txt"
-	DIFFNEWCOUNT=`wc -l diff-new.txt | grep -o "[0-9]\+"`
+	#DIFFNEWCOUNT=`wc -l diff-new.txt | grep -o "[0-9]\+"`
+	DIFFNEWCOUNT=`wc -l < diff-new.txt`
 	echo $DIFFNEWCOUNT > "$DATADIRECTORY/$SNAPSHOT/diff-new-count.txt"
-	DIFFGONECOUNT=`wc -l diff-gone.txt | grep -o "[0-9]\+"`
+	#DIFFGONECOUNT=`wc -l diff-gone.txt | grep -o "[0-9]\+"`
+	DIFFGONECOUNT=`wc -l < diff-gone.txt`
 	echo $DIFFGONECOUNT > "$DATADIRECTORY/$SNAPSHOT/diff-gone-count.txt"
 	
 	# End run
@@ -100,7 +106,7 @@ while true; do
 	echo ""
 	echo "Total items : $LISTCOUNT"
 	echo "  New        : $DIFFNEWCOUNT"
-	echo "  Removed    : $DIFFNEWCOUNT"
+	echo "  Removed    : $DIFFGONECOUNT"
 	echo "Run time    : $RUNTIME"
 	echo ""
 	echo "Next run in $SLEEPDURATION seconds"
