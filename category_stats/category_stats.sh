@@ -85,7 +85,7 @@ while true; do
 
 	# Copy line count
 	#LISTCOUNT=`wc -l list.txt | grep -o "[0-9]\+"`
-	LISTCOUNT=`wc -l < list.txt)`
+	LISTCOUNT=`wc -l < list.txt`
 	echo $LISTCOUNT > "$DATADIRECTORY/$SNAPSHOT/list-count.txt"
 	#DIFFNEWCOUNT=`wc -l diff-new.txt | grep -o "[0-9]\+"`
 	DIFFNEWCOUNT=`wc -l < diff-new.txt`
