@@ -159,8 +159,10 @@ do
 	fi
 
 	RECENTCHANGES="data/recentchanges.json"
-	RECENTCHANGESTXT="data/recentchanges.txt"
 	RECENTLOGS="data/recentlogs.json"
+	RECENTNOCAT="data/recentnocat.json"
+	ALLPAGES="data/recentchanges.txt"
+
 	CURRENTCATS="data/current-categories.json"
 	CURRENTCATSTXT="data/current-categories.txt"
 	PAGES="list-pages.txt"
@@ -171,12 +173,14 @@ do
 	echo "Fetching page data"
 
 	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -T 60 -O $RECENTCHANGES >/dev/null 2>&1
-	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $RECENTCHANGESTXT
+	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $ALLPAGES
 	wget "https://nl.wikipedia.org/w/api.php?action=query&list=logevents&letype=move&lelimit=50&format=json" -T 60 -O $RECENTLOGS >/dev/null 2>&1
-	jq -r ".query.logevents[] | .title" $RECENTLOGS | grep -v ":" >> $RECENTCHANGESTXT
+	jq -r ".query.logevents[] | .title" $RECENTLOGS | grep -v ":" >> $ALLPAGES
+	wget "https://nl.wikipedia.org/w/api.php?action=query&list=querypage&qppage=Uncategorizedpages&format=json" -T 60 -O $RECENTNOCAT >/dev/null 2>&1
+	jq -r ".query.querypage.results[] | .title" $RECENTNOCAT | grep -v ":" >> $ALLPAGES
 	
 	IFS=$'\n'
-	for article in $(cat $RECENTCHANGESTXT | tr -d '\r')    
+	for article in $(cat $ALLPAGES | tr -d '\r')    
 	do
 		articleClean=$article
 		#echo "Processing $article"
@@ -205,7 +209,7 @@ do
 		CONDUNIX=$(date -d "$COND" '+%s')
 		
 		if [ $CONDUNIX -gt $TODATE ]; then
-			echo "Bot has stopped, because it's talkpage has been edited in the last 30 minutes."
+			echo "Bot has stopped, because its talkpage has been edited in the last 30 minutes."
 			rm -rf data
 			exit
 		fi 
@@ -351,7 +355,7 @@ do
 	done
 
 	#rm $RECENTCHANGES
-	#rm $RECENTCHANGESTXT
+	#rm $ALLPAGES
 	#rm $CURRENTCATS
 	#rm $CURRENTCATSTXT
 
