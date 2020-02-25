@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# nocat.sh 0.1
+# nocat.sh 20200225
 # Geoffrey De Belie
 # Based on file upload example on https://www.mediawiki.org/wiki/API:Client_code/Bash
 
@@ -39,6 +39,113 @@ rawurlencode() {
 	echo "${ENCODED}"
 }
 
+do_login() {
+	echo "UTF8 check: ☠"
+	#################login
+	echo "Logging into $WIKIAPI as $USERNAME..."
+
+	###############
+	#Login part 1
+	#printf "%s" "Logging in (1/2)..."
+	echo "Get login token..."
+	CR=$(curl -S \
+		--location \
+		--retry 2 \
+		--retry-delay 5\
+		--cookie $cookie_jar \
+		--cookie-jar $cookie_jar \
+		--user-agent "nocat.sh by Smile4ever" \
+		--keepalive-time 60 \
+		--header "Accept-Language: en-us" \
+		--header "Connection: keep-alive" \
+		--compressed \
+		--request "GET" "${WIKIAPI}?action=query&meta=tokens&type=login&format=json")
+
+	echo "$CR" | jq .
+
+	rm login.json 2>/dev/null
+	echo "$CR" > data/login.json
+	TOKEN=$(jq --raw-output '.query.tokens.logintoken' data/login.json)
+	TOKEN="${TOKEN//\"/}" #replace double quote by nothing
+
+	#Remove carriage return!
+	printf "%s" "$TOKEN" > data/token.txt
+	TOKEN=$(cat data/token.txt | sed 's/\r$//')
+
+
+	if [ "$TOKEN" == "null" ]; then
+		echo "Getting a login token failed."
+		return 1
+	else
+		echo "Login token is $TOKEN"
+		echo "-----"
+	fi
+
+	###############
+	#Login part 2
+	echo "Logging in..."
+	CR=$(curl -S \
+		--location \
+		--cookie $cookie_jar \
+		--cookie-jar $cookie_jar \
+		--user-agent "nocat.sh by Smile4ever" \
+		--keepalive-time 60 \
+		--header "Accept-Language: en-us" \
+		--header "Connection: keep-alive" \
+		--compressed \
+		--data-urlencode "username=${USERNAME}" \
+		--data-urlencode "password=${USERPASS}" \
+		--data-urlencode "rememberMe=1" \
+		--data-urlencode "logintoken=${TOKEN}" \
+		--data-urlencode "loginreturnurl=http://en.wikipedia.org" \
+		--request "POST" "${WIKIAPI}?action=clientlogin&format=json")
+
+	echo "$CR" | jq .
+
+	STATUS=$(echo $CR | jq '.clientlogin.status')
+	if [[ $STATUS == *"PASS"* ]]; then
+		echo "Successfully logged in as $USERNAME, STATUS is $STATUS."
+		echo "-----"
+	else
+		echo "Unable to login, is logintoken ${TOKEN} correct?"
+		return 1
+	fi
+
+	###############
+	#Get edit token
+	echo "Fetching edit token..."
+	CR=$(curl -S \
+		--location \
+		--cookie $cookie_jar \
+		--cookie-jar $cookie_jar \
+		--user-agent "nocat.sh by Smile4ever" \
+		--keepalive-time 60 \
+		--header "Accept-Language: en-us" \
+		--header "Connection: keep-alive" \
+		--header "Content-Type: application/json" \
+		--compressed \
+		--request "POST" "${WIKIAPI}?action=query&meta=tokens&format=json")
+
+	echo "$CR" | jq .
+	echo "$CR" > data/edittoken.json
+	EDITTOKEN=$(jq --raw-output '.query.tokens.csrftoken' data/edittoken.json)
+	rm data/edittoken.json
+
+	EDITTOKEN="${EDITTOKEN//\"/}" #replace double quote by nothing
+
+	#Remove carriage return!
+	printf "%s" "$EDITTOKEN" > data/edittoken.txt
+	EDITTOKEN=$(cat data/edittoken.txt | sed 's/\r$//')
+
+	if [[ $EDITTOKEN == *"+\\"* ]]; then
+		echo "Edit token is: $EDITTOKEN"
+	else
+		echo "Edit token not set."
+		echo "EDITTOKEN was {EDITTOKEN}"
+		return 1
+	fi
+}
+
 while true
 do
     date +"%T"
@@ -52,110 +159,18 @@ do
 {{nocat||${NOCAT}}}"
 
 	if [[ $EDIT == "true" ]]; then
-		echo "UTF8 check: ☠"
-		#################login
-		echo "Logging into $WIKIAPI as $USERNAME..."
-
-		###############
-		#Login part 1
-		#printf "%s" "Logging in (1/2)..."
-		echo "Get login token..."
-		CR=$(curl -S \
-			--location \
-			--retry 2 \
-			--retry-delay 5\
-			--cookie $cookie_jar \
-			--cookie-jar $cookie_jar \
-			--user-agent "nocat.sh by Smile4ever" \
-			--keepalive-time 60 \
-			--header "Accept-Language: en-us" \
-			--header "Connection: keep-alive" \
-			--compressed \
-			--request "GET" "${WIKIAPI}?action=query&meta=tokens&type=login&format=json")
-
-		echo "$CR" | jq .
-			
-		rm login.json 2>/dev/null
-		echo "$CR" > data/login.json
-		TOKEN=$(jq --raw-output '.query.tokens.logintoken' data/login.json)
-		TOKEN="${TOKEN//\"/}" #replace double quote by nothing
-
-		#Remove carriage return!
-		printf "%s" "$TOKEN" > data/token.txt
-		TOKEN=$(cat data/token.txt | sed 's/\r$//')
-
-
-		if [ "$TOKEN" == "null" ]; then
-			echo "Getting a login token failed. Retrying..."
-			sleep 5
-			continue
-		else
-			echo "Login token is $TOKEN"
-			echo "-----"
-		fi
-
-		###############
-		#Login part 2
-		echo "Logging in..."
-		CR=$(curl -S \
-			--location \
-			--cookie $cookie_jar \
-			--cookie-jar $cookie_jar \
-			--user-agent "nocat.sh by Smile4ever" \
-			--keepalive-time 60 \
-			--header "Accept-Language: en-us" \
-			--header "Connection: keep-alive" \
-			--compressed \
-			--data-urlencode "username=${USERNAME}" \
-			--data-urlencode "password=${USERPASS}" \
-			--data-urlencode "rememberMe=1" \
-			--data-urlencode "logintoken=${TOKEN}" \
-			--data-urlencode "loginreturnurl=http://en.wikipedia.org" \
-			--request "POST" "${WIKIAPI}?action=clientlogin&format=json")
-
-		echo "$CR" | jq .
-
-		STATUS=$(echo $CR | jq '.clientlogin.status')
-		if [[ $STATUS == *"PASS"* ]]; then
-			echo "Successfully logged in as $USERNAME, STATUS is $STATUS."
-			echo "-----"
-		else
-			echo "Unable to login, is logintoken ${TOKEN} correct?"
-			exit
-		fi
-
-		###############
-		#Get edit token
-		echo "Fetching edit token..."
-		CR=$(curl -S \
-			--location \
-			--cookie $cookie_jar \
-			--cookie-jar $cookie_jar \
-			--user-agent "nocat.sh by Smile4ever" \
-			--keepalive-time 60 \
-			--header "Accept-Language: en-us" \
-			--header "Connection: keep-alive" \
-			--compressed \
-			--request "POST" "${WIKIAPI}?action=query&meta=tokens&format=json")
-
-		echo "$CR" | jq .
-		echo "$CR" > data/edittoken.json
-		EDITTOKEN=$(jq --raw-output '.query.tokens.csrftoken' data/edittoken.json)
-		rm data/edittoken.json
-
-		EDITTOKEN="${EDITTOKEN//\"/}" #replace double quote by nothing
-
-		#Remove carriage return!
-		printf "%s" "$EDITTOKEN" > data/edittoken.txt
-		EDITTOKEN=$(cat data/edittoken.txt | sed 's/\r$//')
-
-		if [[ $EDITTOKEN == *"+\\"* ]]; then
-			echo "Edit token is: $EDITTOKEN"
-		else
-			echo "Edit token not set."
-			echo "EDITTOKEN was {EDITTOKEN}"
-			exit
-		fi
+		# Try to login maximum 5 times
+		MAXTRIES=5
+		for ((n=0;n<$MAXTRIES;n++))
+		do
+			do_login
+			if [[ $? == 1 ]]; then
+				echo "Retrying to login.."
+				sleep 10
+			else
+				break
+			fi
+		done
 	fi
 
 	RECENTCHANGES="data/recentchanges.json"
@@ -172,10 +187,13 @@ do
 	
 	echo "Fetching page data"
 
+	# Completely new pages
 	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -T 60 -O $RECENTCHANGES >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $ALLPAGES
+	# New pages that get moved soon after creation
 	wget "https://nl.wikipedia.org/w/api.php?action=query&list=logevents&letype=move&lelimit=50&format=json" -T 60 -O $RECENTLOGS >/dev/null 2>&1
-	jq -r ".query.logevents[] | .title" $RECENTLOGS | grep -v ":" >> $ALLPAGES
+	jq -r ".query.logevents[] | .params.target_title" $RECENTLOGS | grep -v ":" >> $ALLPAGES
+	# Pages that have made it to the "shame list" of Wikipedia
 	wget "https://nl.wikipedia.org/w/api.php?action=query&list=querypage&qppage=Uncategorizedpages&format=json" -T 60 -O $RECENTNOCAT >/dev/null 2>&1
 	jq -r ".query.querypage.results[] | .title" $RECENTNOCAT | grep -v ":" >> $ALLPAGES
 	
@@ -198,28 +216,18 @@ do
 		COUNTVISIBLE=$(expr $COUNTVISIBLE - 1)
 		COUNTHIDDEN=$(cat $CURRENTCATSTXT | grep ":Wikipedia:" | wc -l)
 		COUNTALL=$(expr $COUNTVISIBLE + $COUNTHIDDEN)
-		echo $COUNTALL categories, including $COUNTHIDDEN hidden categories on $articleClean
 		
-		# Talkpage edits
-		echo "Fetching talkpage edits"
-		wget "https://nl.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -T 60 -O data/date.json >/dev/null 2>&1
-	
-		TODATE=$(date -d '150 minutes ago' "+%s")
-		COND=$(grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' data/date.json)
-		CONDUNIX=$(date -d "$COND" '+%s')
-		
-		if [ $CONDUNIX -gt $TODATE ]; then
-			echo "Bot has stopped, because its talkpage has been edited in the last 30 minutes."
-			rm -rf data
-			exit
-		fi 
+		echo ""
+		echo "$articleClean"
+
+		echo $COUNTALL categories, including $COUNTHIDDEN hidden categories
 		
 		if [[ $COUNTVISIBLE -eq 0 ]]; then	
 			if [[ $EDIT == "true" ]]; then
-				echo "Fetching CURL"
+				echo "Fetching contents using cURL.."
 				article=$( rawurlencode "$article" )
 
-				CR=$(curl -S \
+				CR=$(curl -s \
 					--location \
 					--retry 2 \
 					--retry-delay 5\
@@ -310,7 +318,21 @@ do
 					echo "This is a disambiguation page, 2nd check"
 					continue
 				fi
-				
+
+				# Talkpage edits
+				echo "Fetching talkpage edits before editing.."
+				wget "https://nl.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -T 60 -O data/date.json >/dev/null 2>&1
+
+				TODATE=$(date -d '150 minutes ago' "+%s")
+				COND=$(grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' data/date.json)
+				CONDUNIX=$(date -d "$COND" '+%s')
+
+				if [ $CONDUNIX -gt $TODATE ]; then
+					echo "$CONFIGUSER has stopped, because its talkpage has been edited in the last 30 minutes."
+					rm -rf data
+					exit
+				fi
+
 				echo "Editing ${article}"
 
 				echo "Adding {{nocat}} template"
@@ -359,6 +381,7 @@ do
 	#rm $CURRENTCATS
 	#rm $CURRENTCATSTXT
 
+	echo ""
 	EDITEDPAGES=$(cat $PAGES 2>/dev/null)
 	if [[ $EDITEDPAGES == "" ]]; then
 		echo "I've edited no pages."
