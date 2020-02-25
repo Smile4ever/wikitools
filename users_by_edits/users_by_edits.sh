@@ -39,42 +39,34 @@ doaction() {
     username="$1"
    	ENCUSERNAME=`urlencode "$username"`
    	
+   	echo $username
+   	
    	# First edit
-	wget -O "firstedit-$ENCUSERNAME.json" --user-agent="usersbyedits tool by Smile4ever" "$PROTOCOL$WIKI/w/api.php?action=query&list=usercontribs&ucuser=$ENCUSERNAME&uclimit=1&ucdir=newer&format=json" 2&>/dev/null
-    jq -r '.query.usercontribs[0].timestamp' firstedit-$ENCUSERNAME.json > "firstedit-$ENCUSERNAME.txt"
-    
-    FIRSTEDIT=""
-    while read -r line; do
-		FIRSTEDIT="$line"
-		echo "First edit date for $username is $FIRSTEDIT"
-		break
-	done < "firstedit-$ENCUSERNAME.txt"
-	rm "firstedit-$ENCUSERNAME.json"
-	rm "firstedit-$ENCUSERNAME.txt"
-    
-	# Last edit
-	wget -O "lastedit-$ENCUSERNAME.json" --user-agent="usersbyedits tool by Smile4ever" "$PROTOCOL$WIKI/w/api.php?action=query&list=usercontribs&ucuser=$ENCUSERNAME&uclimit=1&ucdir=older&format=json" 2&>/dev/null
-    jq -r '.query.usercontribs[0].timestamp' lastedit-$ENCUSERNAME.json > "lastedit-$ENCUSERNAME.txt"
-    
-    LASTEDIT=""
-    while read -r line; do
-		LASTEDIT="$line"
-		echo "Last edit date for $username is $LASTEDIT"
-		break
-	done < "lastedit-$ENCUSERNAME.txt"
-    rm "lastedit-$ENCUSERNAME.json"
-    rm "lastedit-$ENCUSERNAME.txt"
-    
+   	FIRSTEDITJSON=$(curl -s "$PROTOCOL$WIKI/w/api.php?action=query&list=usercontribs&ucuser=$ENCUSERNAME&uclimit=1&ucdir=newer&format=json")
+   	FIRSTEDIT=$(jq -r '.query.usercontribs[0].timestamp' <<< "${FIRSTEDITJSON}" ) 
+    echo $FIRSTEDIT
+
+    # LAST edit
+   	LASTEDITJSON=$(curl -s "$PROTOCOL$WIKI/w/api.php?action=query&list=usercontribs&ucuser=$ENCUSERNAME&uclimit=1&ucdir=older&format=json")
+   	LASTEDIT=$(jq -r '.query.usercontribs[0].timestamp' <<< "${LASTEDITJSON}" ) 
+    echo $LASTEDIT
+	
     # Log events
     ISBOT="false"
-    wget -O "logevent-$ENCUSERNAME.json" --user-agent="usersbyedits tool by Smile4ever" "$PROTOCOL$WIKI/w/api.php?action=query&list=logevents&letype=rights&lelimit=500&letitle=User:$ENCUSERNAME&format=json" 2>/dev/null
-    jq -r '.query.logevents[] | . as $parent | .params | tostring | select(contains("bot")) | $parent.title | split(":") | del(.[0]) | join(":")' logevent-$ENCUSERNAME.json | uniq > "logevent-$ENCUSERNAME.txt"
+    #echo "$PROTOCOL$WIKI/w/api.php?action=query&list=logevents&letype=rights&lelimit=500&letitle=User:$ENCUSERNAME&format=json"
+    LOGEVENTJSON=$(curl -s "$PROTOCOL$WIKI/w/api.php?action=query&list=logevents&letype=rights&lelimit=500&letitle=User:$ENCUSERNAME&format=json")
+   	LOGEVENT=$(echo $LOGEVENTJSON | jq -r '.query.logevents[] | . as $parent | .params | tostring | select(contains("bot")) | $parent.title | split(":") | del(.[0]) | join(":")' | uniq ) 
+    echo $LOGEVENT > "logevent-$ENCUSERNAME.txt"
+    
     while read -r line; do
 		if [[ -n "$line" && "$line" != "null" ]]; then
 			ISBOT="true"
 		fi
 		break
 	done < "logevent-$ENCUSERNAME.txt"
+	
+	rm "logevent-$ENCUSERNAME.txt"
+	
 	# Mark bots that were not detected in the logs that contain bot
 	if [[ "$username" == *"bot"* || "$username" == *"Bot"* || "$username" == *"BoT"* || "$username" == *"BOT"* ]]; then
 		ISBOT="true"
@@ -86,12 +78,18 @@ doaction() {
 	fi
 	
 	# Unmark normal users as bot
-	if [[ "$username" == "Robotje" || "$username" == "Brbotnl" || "$username" == *"boter"* || "$username" == *"Boter"* || "$username" == "Rozebottel" || "$username" == "Debot" || "$username" == "Botend" || "$username" == "Botaneiates" ]]; then
+	if [[ "$username" == "Robotje" || "$username" == "Brbotnl" || "$username" == *"boter"* || "$username" == *"Boter"* || "$username" == "Rozebottel" || "$username" == "Debot" || "$username" == "Botend" || "$username" == "Botaneiates" || "$username" == "Br_bot" || "$username" == "Botje1974" || "$username" == "BobbyDeBot" || "$username" == "Dlibot" ]]; then
 		ISBOT="false"
 	fi
-		
-	echo "$username bot == $ISBOT"
-    rm "logevent-$ENCUSERNAME.json"
+	
+	if [[ "$ISBOT" == "true" ]]
+	then
+		echo "Bot"
+	else
+		echo "User"
+	fi
+	echo ""
+	
     rm "logevent-$ENCUSERNAME.txt"
     
     # Fix some users (they only have deleted edits)
@@ -130,62 +128,103 @@ doaction() {
 		LASTEDIT = "2015-11-16T18:34:00Z"
     fi
     
+    username=$(echo "$username" | sed --expression='s/"/\\"/g')
+    
     # Write result for this user to file
     echo "{ \"name\": \"$username\", \"firstedit\": \"$FIRSTEDIT\", \"lastedit\": \"$LASTEDIT\", \"bot\": \"$ISBOT\" }," >> edit-dates.json
 }
 
-while [[ $LENGTH -eq 500 ]]
-do
-	rm api.php* 2>/dev/null
-	wget --user-agent="usersbyedits tool by Smile4ever" "$PROTOCOL$WIKI/w/api.php?action=query&list=allusers&auprop=editcount|groups&aulimit=500&auwitheditsonly&format=json&aufrom=$AUFROM$ACTIVEONLY" 2&>/dev/null
+if test -n "$(find . -maxdepth 1 -name 'api.php*' -print -quit)"
+then
 	AUFROM=`jq -r '.continue.aufrom' api.php*`
-	echo $AUFROM
-	jq -r '.query.allusers[] | {name: .name, editcount: .editcount, groups: .groups}' api.php* >> result.json
-	LENGTH=`jq -r '.query.allusers | length' api.php*`
-done
+fi
 
-echo "Convert single JSON objects into JSON array"
-sed -i 's/}/},/g' result.json
-# add [ and ] to make an array to the beginning and end of the file
-cat result.json | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' | sed -e '$s/,$/]/' > result-properly.json
-resultproperly=`cat result-properly.json`
-echo "[$resultproperly" > result-properly.json
-#now make a TSV (sort first)
-echo "Sorting..";
-jq -r "sort_by(-.editcount)" result-properly.json > sorted-data.json
+if [[ -z "sorted-data.json" ]]
+then
 
-# Cleanup
-rm result-properly.json 2>/dev/null
-rm result.json 2>/dev/null
-rm aufrom.txt 2>/dev/null
-rm api.php* 2>/dev/null
+	allLetters=([a]=1 [b]=2 [c]=3 [d]=4 [e]=5 [f]=6 [g]=7 [h]=8 [i]=9 [j]=10 [k]=11 [l]=12 [m]=13 [n]=14 [o]=15 [p]=16 [q]=17 [r]=18 [s]=19 [t]=20 [u]=21 [v]=22 [w]=23 [x]=24 [y]=25 [z]=26)
+	#"a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")
+
+	while [[ $LENGTH -eq 500 ]]
+	do
+		echo "Updating.."
+		rm api.php* 2>/dev/null
+		wget --timeout=15 --tries=5 --waitretry=0 --retry-connrefused --no-check-certificate --user-agent="usersbyedits tool by Smile4ever" "$PROTOCOL$WIKI/w/api.php?action=query&list=allusers&auprop=editcount|groups&aulimit=500&auwitheditsonly&format=json&aufrom=$AUFROM$ACTIVEONLY" #2&>/dev/null
+		if [ $? -ne 0 ]
+		then
+			echo "Start the script again. It will pickup where it left off."
+			exit $?
+		fi
+		echo "Downloaded"
+		AUFROM=`jq -r '.continue.aufrom' api.php*`
+		echo $AUFROM
+		
+		FIRSTLETTER="${AUFROM:0:1}"
+		echo $FIRSTLETTER
+		echo ${myArray[$FIRSTLETTER]}
+
+		jq -r '.query.allusers[] | {name: .name, editcount: .editcount, groups: .groups}' api.php* >> result.json
+		LENGTH=`jq -r '.query.allusers | length' api.php*`
+	done
+
+	echo "Convert single JSON objects into JSON array"
+	sed -i 's/}/},/g' result.json
+	# add [ and ] to make an array to the beginning and end of the file
+	cat result.json | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' | sed -e '$s/,$/]/' > result-properly.json
+	resultproperly=`cat result-properly.json`
+	echo "[$resultproperly" > result-properly.json
+	#sort to be able to make result files
+	echo "Sorting..";
+	jq -r "sort_by(-.editcount)" result-properly.json > sorted-data.json
+
+	# Cleanup
+	rm result-properly.json 2>/dev/null
+	rm result.json 2>/dev/null
+	rm aufrom.txt 2>/dev/null
+	rm api.php* 2>/dev/null
+
+fi
 
 ##########################################################################################################################################
-echo "Expanding JSON data with edit dates and bot data"
-jq -r '.[] | [ .name ] | join("\n")' sorted-data.json | head -n$HIGHLIMIT > usernames.$HIGHLIMIT.txt
+if [[ -z "edit-dates.json" ]]
+then
+	echo "Expanding JSON data with edit dates and bot data"
+	jq -r '.[] | [ .name ] | join("\n")' sorted-data.json | head -n$HIGHLIMIT > usernames.$HIGHLIMIT.txt
 
-# Make the beginning
-echo "[" > edit-dates.json
+	# Make the beginning
+	echo "[" > edit-dates.json
 
-export -f urlencode
-export -f doaction
-export PROTOCOL=$PROTOCOL
-export WIKI=$WIKI
+	export -f urlencode
+	export -f doaction
+	export PROTOCOL=$PROTOCOL
+	export WIKI=$WIKI
 
-cat "usernames.$HIGHLIMIT.txt" | parallel -P 16 doaction {}
+	parallel --version
+	if [ $? -ne 0 ]
+	then
+		echo "Install parallel and after that, start the script again"
+		exit $?
+	fi
 
-# Make the end
-sed -i edit-dates.json -e '$s/,$/]/'
+	echo "Highlimit is $HIGHLIMIT"
+	wc -l "usernames.$HIGHLIMIT.txt" 
+	cat "usernames.$HIGHLIMIT.txt" | parallel --progress -P 20 doaction {}
 
-# Cleanup
-rm firstedit-*.json 2>/dev/null
-rm lastedit-*.json 2>/dev/null
-rm logevents-*.json 2>/dev/null
+	# Make the end (replace comma by closing square bracket)
+	sed -i edit-dates.json -e '$s/,$/]/'
 
-rm usernames.$HIGHLIMIT.txt
+	# Cleanup
+	#rm usernames.$HIGHLIMIT.txt
+fi
 
 ## Merge data
+echo "Merging data"
 jq -s '[ .[0] + .[1] | group_by(.name)[] | select(length > 1) | add ]' edit-dates.json sorted-data.json > expanded-sorted-data.json
+if [ $? -ne 0 ]
+	then
+		echo "jq crashed or something else went wrong"
+		exit $?
+	fi
 
 ###########################################################################################################################################
 echo "Generating "

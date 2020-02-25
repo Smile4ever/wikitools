@@ -10,8 +10,10 @@ Data that has previously been generated can be found here: ftp://itsafeature.org
 Requirements
 ------------
 * wget
+* curl
 * jq
 * uniq
+* parallel
 
 For big wikis, a 64 bit computer and up to 8 gigabytes of free RAM is recommended.
 
