@@ -29,7 +29,6 @@ urlencode() {
 
     local LANG=C
     local length="${#1}"
-    echo "Length is $length for ${#1}"
 
     for (( i = 0; i < length; i++ )); do
         local c="${1:i:1}"
@@ -42,7 +41,7 @@ urlencode() {
 
 doaction() {
     username="$1"
-   	ENCUSERNAME="$(perl -MURI::Escape -e 'print uri_escape($ARGV[0]);' "$username")"
+   	ENCUSERNAME=`urlencode "$username"`
    	echo "$username -> $ENCUSERNAME"
    
    	# First edit
