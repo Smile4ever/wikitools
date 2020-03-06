@@ -14,6 +14,7 @@ Requirements
 * jq
 * uniq
 * parallel
+* perl
 
 For big wikis, a 64 bit computer and up to 8 gigabytes of free RAM is recommended.
 
