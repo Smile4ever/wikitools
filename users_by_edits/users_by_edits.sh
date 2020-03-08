@@ -1,4 +1,6 @@
 #!/bin/bash
+# users_by_edits
+
 if [[ $PROTOCOL == "" ]]; then
 	PROTOCOL="https://"
 fi
@@ -20,6 +22,14 @@ fi
 
 if [[ $AUFROM == null ]]; then
 	AUFROM=""
+fi
+
+if [[ $I18N_EDITS == "" ]]; then
+	I18N_EDITS="bewerkingen"
+fi
+
+if [[ $I18N_USER == "" ]]; then
+	I18N_USER="Gebruiker"
 fi
 
 LENGTH=500
@@ -49,7 +59,7 @@ doaction() {
    	echo "$PROTOCOL$WIKI/w/api.php?action=query&list=usercontribs&uclimit=1&ucdir=newer&ucuser=$ENCUSERNAME&format=json"
    	FIRSTEDITJSON=$(curl -s "$PROTOCOL$WIKI/w/api.php?action=query&list=usercontribs&uclimit=1&ucdir=newer&ucuser=$ENCUSERNAME&format=json")
    	FIRSTEDIT=$(echo $FIRSTEDITJSON | jq -r '.query.usercontribs[0].timestamp')
-   	if [[ $FIRSTEDIT == "null" ]]; then
+   	if [[ $FIRSTEDIT == "null" || $FIRSTEDIT == "" ]]; then
 		echo "Fetching from log events (first edit).."
 		FIRSTEDITLOGEVENTJSON=$(curl -s "$PROTOCOL$WIKI/w/api.php?action=query&list=logevents&lelimit=2&ledir=older&leuser=$ENCUSERNAME&format=json")
 		FIRSTEDIT=$(echo $FIRSTEDITLOGEVENTJSON | jq -r '.query.logevents[1].timestamp')
@@ -64,7 +74,7 @@ doaction() {
     echo "$PROTOCOL$WIKI/w/api.php?action=query&list=usercontribs&ucuser=$ENCUSERNAME&uclimit=1&ucdir=older&format=json"
    	LASTEDITJSON=$(curl -s "$PROTOCOL$WIKI/w/api.php?action=query&list=usercontribs&ucuser=$ENCUSERNAME&uclimit=1&ucdir=older&format=json")
    	LASTEDIT=$(echo $LASTEDITJSON | jq -r '.query.usercontribs[0].timestamp') 
-	if [[ $LASTEDIT == "null" ]]; then
+	if [[ $LASTEDIT == "null" || $LASTEDIT == "" ]]; then
 		echo "Fetching from log events (last edit).."
 		LASTEDITLOGEVENTJSON=$(curl -s "$PROTOCOL$WIKI/w/api.php?action=query&list=logevents&lelimit=1&ledir=older&leuser=$ENCUSERNAME&format=json")
 		LASTEDIT=$(echo $LASTEDITLOGEVENTJSON | jq -r '.query.logevents[0].timestamp')
@@ -75,15 +85,15 @@ doaction() {
 	echo $LASTEDIT
 
     # Log events
+    echo "Fetching log events.."
+	echo "$PROTOCOL$WIKI/w/api.php?action=query&list=logevents&letype=rights&lelimit=500&letitle=User:$ENCUSERNAME&format=json"
     LOGEVENTJSON=$(curl -s "$PROTOCOL$WIKI/w/api.php?action=query&list=logevents&letype=rights&lelimit=500&letitle=User:$ENCUSERNAME&format=json")
     SIZE=$(echo $LOGEVENTJSON | wc -c | cut -f1 -d' ')
-    echo $SIZE
     
     ISBOT="false"
 
     if [ "$SIZE" -lt 50 ]; then
 		echo "Set ISBOT=false. $ENCUSERNAME has no log events, which means no extra assigned rights such as bot."
-		echo "$PROTOCOL$WIKI/w/api.php?action=query&list=logevents&letype=rights&lelimit=500&letitle=User:$ENCUSERNAME&format=json"
 	else
 		LOGEVENT=$(echo $LOGEVENTJSON | jq -r '.query.logevents[] | . as $parent | .params | tostring | select(contains("bot")) | $parent.title | split(":") | del(.[0]) | join(":")' | uniq ) 
 		if [ $? -ne 0 ]; then
@@ -192,8 +202,7 @@ if [ ! -f "sorted-data.json" ]; then
 
 		if [ $? -ne 0 ]
 		then
-			
-			echo "Failed to download from $AUFROM. Start the script again. It will pickup where it left off."
+			echo "Failed to download from $AUFROM. Start the script again. It will pickup where it left off. The exit code was $?"
 			mv old.php api.php
 			exit $?
 		fi
@@ -297,13 +306,13 @@ jq -r '.[] | [ .name, .firstedit, .lastedit, .editcount|tostring ] | join("\t")'
 ###########################################################################################################################################
 echo "Creating wikitext files"
 
-jq -r '.[] | [ "# {{intern|1=title=Gebruiker:", (.name | sub(" "; "_") | sub(" "; "_") | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - bewerkingen: ", .editcount|tostring ] | join("\t")' usernames-all.json | cat > usernames-all-wikitext.txt
+jq -r '.[] | [ "# {{intern|1=title='$I18N_USER':", (.name | sub(" "; "_") | sub(" "; "_") | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '$I18N_EDITS': ", .editcount|tostring ] | join("\t")' usernames-all.json | cat > usernames-all-wikitext.txt
 sed -i 's/$/\t)/' usernames-all-wikitext.txt
 
-jq -r '.[] | [ "# {{intern|1=title=Gebruiker:", (.name | sub(" "; "_") | sub(" "; "_") | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - bewerkingen: ", .editcount|tostring ] | join("\t")' usernames-bots.json | cat > usernames-bots-wikitext.txt
+jq -r '.[] | [ "# {{intern|1=title='$I18N_USER':", (.name | sub(" "; "_") | sub(" "; "_") | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '$I18N_EDITS': ", .editcount|tostring ] | join("\t")' usernames-bots.json | cat > usernames-bots-wikitext.txt
 sed -i 's/$/\t)/' usernames-bots-wikitext.txt
 
-jq -r '.[] | [ "# {{intern|1=title=Gebruiker:", (.name | sub(" "; "_") | sub(" "; "_") | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - bewerkingen: ", .editcount|tostring ] | join("\t")' usernames-normal.json | cat > usernames-normal-wikitext.txt
+jq -r '.[] | [ "# {{intern|1=title='$I18N_USER':", (.name | sub(" "; "_") | sub(" "; "_") | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '$I18N_EDITS': ", .editcount|tostring ] | join("\t")' usernames-normal.json | cat > usernames-normal-wikitext.txt
 sed -i 's/$/\t)/' usernames-normal-wikitext.txt
 
 ###########################################################################################################################################

@@ -15,7 +15,7 @@ Requirements
 * uniq
 * parallel
 
-For big wikis, a 64 bit computer and up to 8 gigabytes of free RAM is recommended.
+For big wikis, a 64 bit computer and at least 8 gigabytes of free RAM is recommended.
 
 Usage
 ------
@@ -34,10 +34,15 @@ Configuration
 You can specify which wiki to generate the list for:
   PROTOCOL="https://" WIKI="en.wikipedia.org" ./users_by_edits.sh
 
+To use your correct locale, specify $I18N_EDITS and $I18N_USER:
+  PROTOCOL="https://" WIKI="en.wikipedia.org" I18N_EDITS="edits" $I18N_USER="User" ./users_by_edits.sh
+
 These are the default values:
 
 * PROTOCOL="https://"
 * WIKI="nl.wikipedia.org"
+* I18N_EDITS="bewerkingen"
+* I18N_USER="Gebruiker"
 
 Output
 ------
