@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# nocat.sh 20200225
+# nocat.sh 20200420
 # Geoffrey De Belie
 # Based on file upload example on https://www.mediawiki.org/wiki/API:Client_code/Bash
 
@@ -33,11 +33,6 @@ fi
 USERNAME=$(cat ${CONFIGUSER})
 USERPASS=$(cat ${CONFIGPASSWORD} | base64 --decode)
 cookie_jar="data/wikicj" #Will store file in wikifile
-
-rawurlencode() {
-	ENCODED="${1//\&/\%26}" #replace ampersand by %26
-	echo "${ENCODED}"
-}
 
 do_login() {
 	echo "UTF8 check: ☠"
@@ -90,6 +85,8 @@ do_login() {
 		--cookie-jar $cookie_jar \
 		--user-agent "nocat.sh by Smile4ever" \
 		--keepalive-time 60 \
+		--max-time 15 \
+		--connect-timeout 15 \
 		--header "Accept-Language: en-us" \
 		--header "Connection: keep-alive" \
 		--compressed \
@@ -196,7 +193,7 @@ do
 	# Pages that have made it to the "shame list" of Wikipedia
 	wget "https://nl.wikipedia.org/w/api.php?action=query&list=querypage&qppage=Uncategorizedpages&format=json" -T 60 -O $RECENTNOCAT >/dev/null 2>&1
 	jq -r ".query.querypage.results[] | .title" $RECENTNOCAT | grep -v ":" >> $ALLPAGES
-	
+
 	IFS=$'\n'
 	for article in $(cat $ALLPAGES | tr -d '\r')    
 	do
@@ -225,7 +222,6 @@ do
 		if [[ $COUNTVISIBLE -eq 0 ]]; then	
 			if [[ $EDIT == "true" ]]; then
 				echo "Fetching contents using cURL.."
-				article=$( rawurlencode "$article" )
 
 				CR=$(curl -s \
 					--location \
@@ -238,7 +234,12 @@ do
 					--header "Accept-Language: en-us" \
 					--header "Connection: keep-alive" \
 					--compressed \
-					--request "GET" "${WIKIAPI}?action=query&prop=revisions&titles=${article}&rvprop=timestamp|user|comment|content&format=json")
+					-G "${WIKIAPI}" \
+					--data-urlencode "action=query" \
+					--data-urlencode "prop=revisions" \
+					--data-urlencode "titles=${article}" \
+					--data-urlencode "rvprop=timestamp|user|comment|content" \
+					--data-urlencode "format=json")
 
 				#echo "$CR" | jq .
 				CONTENT=$(echo "$CR"|jq -r '.query.pages')
