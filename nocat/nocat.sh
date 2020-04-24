@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# nocat.sh 20200420
+# nocat.sh 20200424
 # Geoffrey De Belie
 # Based on file upload example on https://www.mediawiki.org/wiki/API:Client_code/Bash
 
@@ -285,7 +285,12 @@ do
 					continue
 				fi
 				
-				if [[ $CONTENT == *"{{meebezig"* ]] || [[ $CONTENT == *"{{Meebezig"* ]] || [[ $CONTENT == *"{{Wiu2"* ]] || [[ $CONTENT == *"{{wiu2"* ]]; then
+				if [[ $CONTENT == *"{{meebezig"* ]] || [[ $CONTENT == *"{{Meebezig"* ]] || [[ $CONTENT == *"{{mee bezig"* ]] || [[ $CONTENT == *"{{Mee bezig"* ]]; then
+					echo "Is being worked on"
+					continue
+				fi
+				
+				if [[ $CONTENT == *"{{wiu2"* ]] || [[ $CONTENT == *"{{Wiu2"* ]]; then
 					echo "Is being worked on"
 					continue
 				fi
