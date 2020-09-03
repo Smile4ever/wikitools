@@ -10,6 +10,7 @@ Software:
 * openssl
 * base64 (from coreutils)
 * head and tail
+* tee (for logging, recommended)
 
 Info:
 * valid username and password for wiki
@@ -27,7 +28,7 @@ Also, EDIT needs to be set to true, otherwise the script won't edit pages
 
 After the steps above, just execute the script:
 
-    ./nocat.sh
+    ./nocat.sh | tee -a nocat.log
 
 By default, the script will ask for a username and a password when running for the first time. It will remember these settings because they are stored in the /config subdirectory.
 
@@ -35,7 +36,7 @@ The /data directory contains all temporary files when the script is executing. Y
 
 The list-editedpages.txt keeps the history of the edits nocat.sh has made. It is advised you do not delete this file. The file is created if it does not exist after the first edit has been made.
 
-The script will execute itself every 5 minutes.
+The script will execute itself every 15 minutes and log the changes to the log file nocat.log in plain text format.
 
 Common problems
 ============

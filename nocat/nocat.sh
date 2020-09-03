@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# nocat.sh 20200424
+# nocat.sh 20200904
 # Geoffrey De Belie
 # Based on file upload example on https://www.mediawiki.org/wiki/API:Client_code/Bash
 
@@ -15,6 +15,22 @@ CONFIGPASSWORD="config/password.txt"
 CONFIGUSER="config/username.txt"
 
 mkdir config 2>/dev/null
+
+# Colors
+# https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+ORANGEBROWN='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+OK="${PURPLE}OK${NC}"
+WARNING="${BLUE}\$?${NC}"
+
+# Logging
+# Use nocat.sh | tee -a nocat.log
+# For easier reading of the logging file, you can remove the colors:
 
 if [[ ! -f "${CONFIGPASSWORD}" ]]; then
 	echo "Welcome to nocat.sh"
@@ -66,7 +82,6 @@ do_login() {
 	#Remove carriage return!
 	printf "%s" "$TOKEN" > data/token.txt
 	TOKEN=$(cat data/token.txt | sed 's/\r$//')
-
 
 	if [ "$TOKEN" == "null" ]; then
 		echo "Getting a login token failed."
@@ -126,7 +141,7 @@ do_login() {
 	echo "$CR" | jq .
 	echo "$CR" > data/edittoken.json
 	EDITTOKEN=$(jq --raw-output '.query.tokens.csrftoken' data/edittoken.json)
-	rm data/edittoken.json
+	#rm data/edittoken.json Keep file for auditing purposes
 
 	EDITTOKEN="${EDITTOKEN//\"/}" #replace double quote by nothing
 
@@ -138,17 +153,17 @@ do_login() {
 		echo "Edit token is: $EDITTOKEN"
 	else
 		echo "Edit token not set."
-		echo "EDITTOKEN was {EDITTOKEN}"
+		echo "EDITTOKEN was ${EDITTOKEN}"
 		return 1
 	fi
 }
 
 while true
 do
-    date +"%T"
+    date +"%Y-%m-%d %T"
 	mkdir data 2>/dev/null
 	
-	echo "Checking RCSTART"
+	echo "Taking new pages, max 3 hours old (RCSTART)"
 	RCSTART=$(date -d '3 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
@@ -175,170 +190,201 @@ do
 	RECENTNOCAT="data/recentnocat.json"
 	ALLPAGES="data/recentchanges.txt"
 
-	CURRENTCATS="data/current-categories.json"
 	CURRENTCATSTXT="data/current-categories.txt"
 	PAGES="list-pages.txt"
 	LISTEDITEDPAGES="list-editedpages.txt"
 
 	rm $PAGES 2>/dev/null
 	
-	echo "Fetching page data"
+	echo "Fetching pages from lists (new, moved, uncategorized)"
 
 	# Completely new pages
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -T 60 -O $RECENTCHANGES >/dev/null 2>&1
+	wget "${WIKIAPI}?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -T 60 -O $RECENTCHANGES >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $ALLPAGES
 	# New pages that get moved soon after creation
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=logevents&letype=move&lelimit=50&format=json" -T 60 -O $RECENTLOGS >/dev/null 2>&1
+	wget "${WIKIAPI}?action=query&list=logevents&letype=move&lelimit=50&format=json" -T 60 -O $RECENTLOGS >/dev/null 2>&1
 	jq -r ".query.logevents[] | .params.target_title" $RECENTLOGS | grep -v ":" >> $ALLPAGES
 	# Pages that have made it to the "shame list" of Wikipedia
-	wget "https://nl.wikipedia.org/w/api.php?action=query&list=querypage&qppage=Uncategorizedpages&format=json" -T 60 -O $RECENTNOCAT >/dev/null 2>&1
+	wget "${WIKIAPI}?action=query&list=querypage&qppage=Uncategorizedpages&format=json" -T 60 -O $RECENTNOCAT >/dev/null 2>&1
 	jq -r ".query.querypage.results[] | .title" $RECENTNOCAT | grep -v ":" >> $ALLPAGES
 
 	IFS=$'\n'
 	for article in $(cat $ALLPAGES | tr -d '\r')    
 	do
 		articleClean=$article
-		#echo "Processing $article"
 		article="${article// /_}"
 		#article="${article//\r/}"
 		
-		wget "https://nl.wikipedia.org/w/api.php?action=query&titles=$article&prop=categories&format=json&clshow=!hidden" -T 60 -O $CURRENTCATS >/dev/null 2>&1
-	
-		#cat $CURRENTCATS
-		#echo ""
+		OKARTICLECLEAN="${OK} - ${GREEN}$articleClean${NC}"
+		WARNINGARTICLECLEAN="${WARNING} - ${GREEN}$articleClean${NC}"
 
-		#Key parsen met jq:
-		jq -r '.query.pages | .. | .title? | select(.)' $CURRENTCATS > $CURRENTCATSTXT
-		COUNTVISIBLE=$(cat $CURRENTCATSTXT | grep -v ":Wikipedia:" | wc -l)
-		COUNTVISIBLE=$(expr $COUNTVISIBLE - 1)
-		COUNTHIDDEN=$(cat $CURRENTCATSTXT | grep ":Wikipedia:" | wc -l)
-		COUNTALL=$(expr $COUNTVISIBLE + $COUNTHIDDEN)
-		
-		echo ""
-		echo "$articleClean"
+		CR=$(curl -s \
+				--location \
+				--retry 2 \
+				--retry-delay 5\
+				--cookie $cookie_jar \
+				--cookie-jar $cookie_jar \
+				--user-agent "nocat.sh by Smile4ever" \
+				--keepalive-time 60 \
+				--header "Accept-Language: en-us" \
+				--header "Connection: keep-alive" \
+				--compressed \
+				-G "${WIKIAPI}" \
+				--data-urlencode "action=query" \
+				--data-urlencode "prop=categories" \
+				--data-urlencode "titles=${article}" \
+				--data-urlencode "clshow=!hidden" \
+				--data-urlencode "format=json")
 
-		echo $COUNTALL categories, including $COUNTHIDDEN hidden categories
-		
-		if [[ $COUNTVISIBLE -eq 0 ]]; then	
+		if [[ $CR == *'missing":'* ]]; then
+			echo -e "${OKARTICLECLEAN} - Malformed/deleted article during category parsing"
+			continue
+		fi
+
+		echo "$CR" | jq -r '.query.pages | to_entries[] | try .value.categories?[].title | ("    " + select(.))' > $CURRENTCATSTXT
+
+		if [[ ! $CR == *"categories"* ]]; then
+			#echo "$CR" | jq
+			echo -e "${WARNINGARTICLECLEAN} - Unexpected MediaWiki error during category parsing. Continuing anyway."
+
+			COUNTVISIBLE=0
+			COUNTHIDDEN="0" #On purpose
+			COUNTALL=0
+		else
+			COUNTVISIBLE=$(cat $CURRENTCATSTXT | grep -v ":Wikipedia:" | wc -l)
+			COUNTVISIBLE=$(expr $COUNTVISIBLE)
+			COUNTHIDDEN=$(cat $CURRENTCATSTXT | grep ":Wikipedia:" | wc -l)
+			COUNTALL=$(expr $COUNTVISIBLE + $COUNTHIDDEN)
+		fi
+
+		if [[ $COUNTVISIBLE -eq 0 ]]; then
+			echo -e "${BLUE}..${NC} - ${GREEN}$articleClean${NC} - No visible categories, $COUNTHIDDEN hidden categories"
+
+			#if [[ $COUNTALL -eq 1 ]]; then
+			#	echo $COUNTALL category, including $COUNTHIDDEN hidden categories	
+			#else
+			#	echo $COUNTALL categories, including $COUNTHIDDEN hidden categories
+			#fi
+
+			CR=$(curl -s \
+				--location \
+				--retry 2 \
+				--retry-delay 5\
+				--cookie $cookie_jar \
+				--cookie-jar $cookie_jar \
+				--user-agent "nocat.sh by Smile4ever" \
+				--keepalive-time 60 \
+				--header "Accept-Language: en-us" \
+				--header "Connection: keep-alive" \
+				--compressed \
+				-G "${WIKIAPI}" \
+				--data-urlencode "action=query" \
+				--data-urlencode "prop=revisions" \
+				--data-urlencode "titles=${article}" \
+				--data-urlencode "rvprop=timestamp|user|comment|content" \
+				--data-urlencode "format=json")
+
+			#echo "$CR" | jq .
+			CONTENT=$(echo "$CR"|jq -r '.query.pages')
+			
+			#Checks the content of the page and doesn't place a {{nocat}} template if one of these strings are in the json
+			if [[ $CONTENT == *'missing":'* ]]; then
+				echo -e "${OKARTICLECLEAN} - Malformed/deleted article"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"{{nocat"* ]] || [[ $CONTENT == *"{{Nocat"* ]]; then
+				echo -e "${OKARTICLECLEAN} - {{nocat}} is already on this page"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"{{nobots"* ]] || [[ $CONTENT == *"{{Nobots"* ]]; then
+				echo -e "${OKARTICLECLEAN} - {{nobots}} is on this page"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"{{bots|deny=all"* ]] || [[ $CONTENT == *"{{Bots|deny=all"* ]]; then
+				echo -e "${OKARTICLECLEAN} - {{nobots}} is on this page"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"[[Categor"* && $CONTENT != *":Wikipedia:"* ]] || [[ $CONTENT == *"[[categor"* && $CONTENT != *":wikipedia:"* ]]; then
+				echo -e "${OKARTICLECLEAN} - Has already a category"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"Categorie:Wikipedia:Doorverwijspagina"* ]]; then
+				echo -e "${OKARTICLECLEAN} - Has already the category Categorie:Wikipedia:Doorverwijspagina"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"{{dp"* ]] || [[ $CONTENT == *"{{Dp"* ]]; then
+				echo -e "${OKARTICLECLEAN} - This is a disambiguation page"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"{{nuweg"* ]] || [[ $CONTENT == *"{{speedy"* ]] || [[ $CONTENT == *"{{delete"* ]]; then
+				echo -e "${OKARTICLECLEAN} - Has been nominated for speedy deletion"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"{{meebezig"* ]] || [[ $CONTENT == *"{{Meebezig"* ]] || [[ $CONTENT == *"{{mee bezig"* ]] || [[ $CONTENT == *"{{Mee bezig"* ]]; then
+				echo -e "${OKARTICLECLEAN} - Is being worked on"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"{{wiu2"* ]] || [[ $CONTENT == *"{{Wiu2"* ]]; then
+				echo -e "${OKARTICLECLEAN} - Is being worked on"
+				continue
+			fi
+			
+			if [[ $CONTENT == *"#doorverwijzing"* ]] || [[ $CONTENT == *"#DOORVERWIJZING"* ]] || [[ $CONTENT == *"#Doorverwijzing"* ]] || [[ $CONTENT == *"#redirect"* ]] || [[ $CONTENT == *"#REDIRECT"* ]] || [[ $CONTENT == *"#Redirect"* ]]; then
+				echo -e "${OKARTICLECLEAN} - Is a redirect page"
+				continue
+			fi
+			
+			CRCHECK=$(curl -S \
+				--location \
+				--retry 2 \
+				--retry-delay 5\
+				--cookie $cookie_jar \
+				--cookie-jar $cookie_jar \
+				--user-agent "nocat.sh by Smile4ever" \
+				--keepalive-time 60 \
+				--header "Accept-Language: en-us" \
+				--header "Connection: keep-alive" \
+				--compressed \
+				--request "GET" "${WIKIAPI}?action=query&prop=revisions&titles=${article}&rvprop=timestamp|user|comment|content&format=json")
+
+			CONTENTCHECK=$(echo "$CRCHECK"|jq -r '.query.pages')
+			
+			if [[ $CONTENTCHECK == *"#doorverwijzing"* ]] || [[ $CONTENTCHECK == *"#DOORVERWIJZING"* ]] || [[ $CONTENTCHECK == *"#Doorverwijzing"* ]] || [[ $CONTENTCHECK == *"#redirect"* ]] || [[ $CONTENTCHECK == *"#REDIRECT"* ]] || [[ $CONTENTCHECK == *"#Redirect"* ]]; then
+				echo -e "${OKARTICLECLEAN} - Is a redirect page, 2nd check"
+				continue
+			fi
+			
+			if [[ $CONTENTCHECK == *"{{dp"* ]] || [[ $CONTENTCHECK == *"{{Dp"* ]]; then
+				echo -e "${OKARTICLECLEAN} - This is a disambiguation page, 2nd check"
+				continue
+			fi
+
+			cat $CURRENTCATSTXT
+
+			# Talkpage edits
+			echo "Fetching talkpage edits before editing.."
+			wget "${WIKIAPI}?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -T 60 -O data/date.json >/dev/null 2>&1
+
+			TODATE=$(date -d '150 minutes ago' "+%s")
+			COND=$(grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' data/date.json)
+			CONDUNIX=$(date -d "$COND" '+%s')
+
+			if [ $CONDUNIX -gt $TODATE ]; then
+				echo "$CONFIGUSER has stopped, because its talkpage has been edited in the last 30 minutes."
+				rm -rf data
+				exit
+			fi
+
 			if [[ $EDIT == "true" ]]; then
-				echo "Fetching contents using cURL.."
-
-				CR=$(curl -s \
-					--location \
-					--retry 2 \
-					--retry-delay 5\
-					--cookie $cookie_jar \
-					--cookie-jar $cookie_jar \
-					--user-agent "nocat.sh by Smile4ever" \
-					--keepalive-time 60 \
-					--header "Accept-Language: en-us" \
-					--header "Connection: keep-alive" \
-					--compressed \
-					-G "${WIKIAPI}" \
-					--data-urlencode "action=query" \
-					--data-urlencode "prop=revisions" \
-					--data-urlencode "titles=${article}" \
-					--data-urlencode "rvprop=timestamp|user|comment|content" \
-					--data-urlencode "format=json")
-
-				#echo "$CR" | jq .
-				CONTENT=$(echo "$CR"|jq -r '.query.pages')
-				
-				#Checks the content of the page and doesn't place a {{nocat}} template if one of these strings are in the json
-				if [[ $CONTENT == *'missing":'* ]]; then
-					echo "Malformed/deleted article"
-					continue
-				fi				
-				
-				if [[ $CONTENT == *"{{nocat"* ]] || [[ $CONTENT == *"{{Nocat"* ]]; then
-					echo "{{nocat}} is already on this page"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"{{nobots"* ]] || [[ $CONTENT == *"{{Nobots"* ]]; then
-					echo "{{nobots}} is on this page"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"{{bots|deny=all"* ]] || [[ $CONTENT == *"{{Bots|deny=all"* ]]; then
-					echo "{{nobots}} is on this page"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"[[Categor"* && $CONTENT != *":Wikipedia:"* ]] || [[ $CONTENT == *"[[categor"* && $CONTENT != *":wikipedia:"* ]]; then
-					echo "Has already a category"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"Categorie:Wikipedia:Doorverwijspagina"* ]]; then
-					echo "Has already the category Categorie:Wikipedia:Doorverwijspagina"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"{{dp"* ]] || [[ $CONTENT == *"{{Dp"* ]]; then
-					echo "This is a disambiguation page"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"{{nuweg"* ]] || [[ $CONTENT == *"{{speedy"* ]] || [[ $CONTENT == *"{{delete"* ]]; then
-					echo "Has been nominated for speedy deletion"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"{{meebezig"* ]] || [[ $CONTENT == *"{{Meebezig"* ]] || [[ $CONTENT == *"{{mee bezig"* ]] || [[ $CONTENT == *"{{Mee bezig"* ]]; then
-					echo "Is being worked on"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"{{wiu2"* ]] || [[ $CONTENT == *"{{Wiu2"* ]]; then
-					echo "Is being worked on"
-					continue
-				fi
-				
-				if [[ $CONTENT == *"#doorverwijzing"* ]] || [[ $CONTENT == *"#DOORVERWIJZING"* ]] || [[ $CONTENT == *"#Doorverwijzing"* ]] || [[ $CONTENT == *"#redirect"* ]] || [[ $CONTENT == *"#REDIRECT"* ]] || [[ $CONTENT == *"#Redirect"* ]]; then
-					echo "Is a redirect page"
-					continue
-				fi
-				
-				CRCHECK=$(curl -S \
-					--location \
-					--retry 2 \
-					--retry-delay 5\
-					--cookie $cookie_jar \
-					--cookie-jar $cookie_jar \
-					--user-agent "nocat.sh by Smile4ever" \
-					--keepalive-time 60 \
-					--header "Accept-Language: en-us" \
-					--header "Connection: keep-alive" \
-					--compressed \
-					--request "GET" "${WIKIAPI}?action=query&prop=revisions&titles=${article}&rvprop=timestamp|user|comment|content&format=json")
-
-				CONTENTCHECK=$(echo "$CRCHECK"|jq -r '.query.pages')
-				
-				if [[ $CONTENTCHECK == *"#doorverwijzing"* ]] || [[ $CONTENTCHECK == *"#DOORVERWIJZING"* ]] || [[ $CONTENTCHECK == *"#Doorverwijzing"* ]] || [[ $CONTENTCHECK == *"#redirect"* ]] || [[ $CONTENTCHECK == *"#REDIRECT"* ]] || [[ $CONTENTCHECK == *"#Redirect"* ]]; then
-					echo "Is a redirect page, 2nd check"
-					continue
-				fi
-				
-				if [[ $CONTENTCHECK == *"{{dp"* ]] || [[ $CONTENTCHECK == *"{{Dp"* ]]; then
-					echo "This is a disambiguation page, 2nd check"
-					continue
-				fi
-
-				# Talkpage edits
-				echo "Fetching talkpage edits before editing.."
-				wget "https://nl.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -T 60 -O data/date.json >/dev/null 2>&1
-
-				TODATE=$(date -d '150 minutes ago' "+%s")
-				COND=$(grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' data/date.json)
-				CONDUNIX=$(date -d "$COND" '+%s')
-
-				if [ $CONDUNIX -gt $TODATE ]; then
-					echo "$CONFIGUSER has stopped, because its talkpage has been edited in the last 30 minutes."
-					rm -rf data
-					exit
-				fi
-
 				echo "Editing ${article}"
 
 				echo "Adding {{nocat}} template"
@@ -359,24 +405,31 @@ do
 					--data-urlencode "token=${EDITTOKEN}" \
 					--request "POST" "${WIKIAPI}?action=edit&format=json")
 				
+				CURLINFO="${WIKIAPI}?action=edit&format=json&title=${article}&summary=+${NOCAT}&appendtext=${NOCAT}&token=${EDITTOKEN}"
+
 				ERRORINFO=$(echo $CR | jq '.error.info' 2>/dev/null)
 				if [[ $ERRORINFO == *"The page you specified doesn't exist."* ]]; then
-					echo "Skipping ${article}"
+					echo -e "${OKARTICLECLEAN} - Skipping ${article}"
 				else
+					# Display errorinfo if non-empty
+					if [[  $ERRORINFO ]]; then
+						echo $CURLINFO
+						echo $ERRORINFO
+					fi
+
 					echo "$CR" | jq .
 					echo $articleClean >> $PAGES
 					echo "Waiting 5 seconds"
 					sleep 5
-				fi 
-				
+				fi
 			else
 				echo $articleClean >> $PAGES
-				echo "I would edit ${article}"
+				echo -e "I would ${RED}edit${NC} ${articleClean}"
+				#echo "I would edit ${article}"
 			fi
+		else
+			echo -e "${OKARTICLECLEAN} - Has at least one visible category"
 		fi
-		
-		#Show the categories without the first line, which is the article's title
-		#tail -n +2 $CURRENTCATSTXT
 
 	#	sizediff=$(stat -c%s diff.txt)
 		
@@ -384,33 +437,41 @@ do
 
 	#rm $RECENTCHANGES
 	#rm $ALLPAGES
-	#rm $CURRENTCATS
 	#rm $CURRENTCATSTXT
 
 	echo ""
-	EDITEDPAGES=$(cat $PAGES 2>/dev/null)
-	if [[ $EDITEDPAGES == "" ]]; then
-		echo "I've edited no pages."
+	COUNTEDITEDPAGES=$(cat $PAGES | wc -l)
+	COUNTEDITEDPAGES=$(expr $COUNTEDITEDPAGES)
+
+	if [[ $COUNTEDITEDPAGES -eq 0 ]]; then
+		echo -e "${RED}I've edited no pages.${NC}"
 	else
-		echo "I've edited these pages:"
-		echo $EDITEDPAGES
+		echo -e "${RED}I've edited these pages:${NC}"
+		cat $PAGES
 	fi
 	
 	if [[ -e $LISTEDITEDPAGES ]]; then
 		echo ""
-		echo "Edit history"
+		echo -e "${RED}Edit history${NC}"
 		tac $LISTEDITEDPAGES | head -n10 
 	fi
 	
-	if [[ $EDITEDPAGES != "" ]]; then
-		echo $EDITEDPAGES >> $LISTEDITEDPAGES
+	if [[ $COUNTEDITEDPAGES -ne 0 ]]; then
+		cat $PAGES >> $LISTEDITEDPAGES
 	fi
 	
-	#Delete all files in directory, leave subdirs as is
-	#for f in $(ls | grep -v .sh | grep -v .md  | grep -v .config | grep -v password | grep -v list); do [[ -d "$f" ]] || rm "$f"; done
+	#Delete all files in data directory
 	rm -rf data
+	rm $PAGES 2>/dev/null
 	
-	CURDATE=$(date +"%T")
+	CURDATE=$(date +"%Y-%m-%d %T")
+	echo ""
+	
 	echo "${CURDATE} Waiting 15 minutes.."
+	echo ""
+
+	#Removing colors from log file, it has to be the last statement
+	sed -i -r 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g' nocat.log
+
     sleep 900
 done
