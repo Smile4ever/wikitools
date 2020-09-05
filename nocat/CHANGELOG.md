@@ -1,6 +1,13 @@
 CHANGELOG
 ==
 
+20200905
+====
+* Initial support for login-throttled (needs more work not to get stuck on retry)
+* Max login tries increased to 10
+* Retrying to login with more information
+* Cleanup/clarify code
+
 20200904
 ====
 * Fix URL encoding issue while retrieving categories by using cURL instead of wget

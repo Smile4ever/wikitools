@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 
-# nocat.sh 20200904
+# nocat.sh 20200905
 # Geoffrey De Belie
 # Based on file upload example on https://www.mediawiki.org/wiki/API:Client_code/Bash
 
-#Needs curl, wget, jq, base64 (from coreutils), openssl, head, tail
+# Needs curl, wget, jq, base64 (from coreutils), openssl, head, tail
+# For logging, use nocat.sh | tee -a nocat.log
 
-#Settings
+# Settings
 WIKIAPI="https://nl.wikipedia.org/w/api.php"
 EDIT="true"
 #End of settings block
 
 CONFIGPASSWORD="config/password.txt"
 CONFIGUSER="config/username.txt"
+COOKIEFILE="data/cookie.txt"
 
 mkdir config 2>/dev/null
 
@@ -28,9 +30,8 @@ NC='\033[0m' # No Color
 OK="${PURPLE}OK${NC}"
 WARNING="${BLUE}\$?${NC}"
 
-# Logging
-# Use nocat.sh | tee -a nocat.log
-# For easier reading of the logging file, you can remove the colors:
+# cURL parameter explanation
+# https://gist.github.com/subfuzion/08c5d85437d5d4f00e58
 
 if [[ ! -f "${CONFIGPASSWORD}" ]]; then
 	echo "Welcome to nocat.sh"
@@ -43,28 +44,25 @@ if [[ ! -f "${CONFIGPASSWORD}" ]]; then
 	read -s -p "Password: " password
 	openssl enc -base64 <<< "$password" | tr -d '\n' | tr -d '\r' > "${CONFIGPASSWORD}"
 	echo "Your password has been saved in the file ${CONFIGPASSWORD} using base64 encoding."
-
 fi
 
 USERNAME=$(cat ${CONFIGUSER})
 USERPASS=$(cat ${CONFIGPASSWORD} | base64 --decode)
-cookie_jar="data/wikicj" #Will store file in wikifile
+COOKIEJAR="data/wikicj" #Store cookie in wikicj file
 
 do_login() {
 	echo "UTF8 check: ☠"
-	#################login
 	echo "Logging into $WIKIAPI as $USERNAME..."
 
 	###############
 	#Login part 1
-	#printf "%s" "Logging in (1/2)..."
-	echo "Get login token..."
+	echo -e "${PURPLE}Get login token...${NC}"
 	CR=$(curl -S \
 		--location \
 		--retry 2 \
 		--retry-delay 5\
-		--cookie $cookie_jar \
-		--cookie-jar $cookie_jar \
+		--cookie $COOKIEJAR \
+		--cookie-jar $COOKIEJAR \
 		--user-agent "nocat.sh by Smile4ever" \
 		--keepalive-time 60 \
 		--header "Accept-Language: en-us" \
@@ -74,30 +72,30 @@ do_login() {
 
 	echo "$CR" | jq .
 
-	rm login.json 2>/dev/null
+	rm data/login.json 2>/dev/null
 	echo "$CR" > data/login.json
-	TOKEN=$(jq --raw-output '.query.tokens.logintoken' data/login.json)
-	TOKEN="${TOKEN//\"/}" #replace double quote by nothing
+	LOGINTOKEN=$(jq -r '.query.tokens.logintoken' data/login.json)
+	LOGINTOKEN="${LOGINTOKEN//\"/}" #replace double quote by nothing
 
 	#Remove carriage return!
-	printf "%s" "$TOKEN" > data/token.txt
-	TOKEN=$(cat data/token.txt | sed 's/\r$//')
+	printf "%s" "$LOGINTOKEN" > data/logintoken.txt
+	LOGINTOKEN=$(cat data/logintoken.txt | sed 's/\r$//')
 
-	if [ "$TOKEN" == "null" ]; then
+	if [ "$LOGINTOKEN" == "null" ]; then
 		echo "Getting a login token failed."
 		return 1
 	else
-		echo "Login token is $TOKEN"
+		echo "Login token is $LOGINTOKEN"
 		echo "-----"
 	fi
 
 	###############
 	#Login part 2
-	echo "Logging in..."
+	echo -e "${PURPLE}Logging in using password and login token...${NC}"
 	CR=$(curl -S \
 		--location \
-		--cookie $cookie_jar \
-		--cookie-jar $cookie_jar \
+		--cookie $COOKIEJAR \
+		--cookie-jar $COOKIEJAR \
 		--user-agent "nocat.sh by Smile4ever" \
 		--keepalive-time 60 \
 		--max-time 15 \
@@ -108,53 +106,94 @@ do_login() {
 		--data-urlencode "username=${USERNAME}" \
 		--data-urlencode "password=${USERPASS}" \
 		--data-urlencode "rememberMe=1" \
-		--data-urlencode "logintoken=${TOKEN}" \
-		--data-urlencode "loginreturnurl=http://en.wikipedia.org" \
+		--data-urlencode "logintoken=${LOGINTOKEN}" \
+		--data-urlencode "loginreturnurl=${WIKIAPI}" \
 		--request "POST" "${WIKIAPI}?action=clientlogin&format=json")
 
 	echo "$CR" | jq .
 
 	STATUS=$(echo $CR | jq '.clientlogin.status')
 	if [[ $STATUS == *"PASS"* ]]; then
-		echo "Successfully logged in as $USERNAME, STATUS is $STATUS."
+		echo -e "Successfully logged in as $USERNAME, STATUS is $STATUS."
 		echo "-----"
 	else
-		echo "Unable to login, is logintoken ${TOKEN} correct?"
+		echo -e "${RED}Unable to login, is logintoken ${LOGINTOKEN} correct?${NC}"
+		if [[ $STATUS == *"FAIL"* ]]; then
+			MESSAGE=$(echo $CR | jq -r '.clientlogin.message' | tr '\n' ' ')
+			echo -e "${RED}${MESSAGE}${NC}"
+			
+			CODE=$(echo $CR | jq -r '.clientlogin.messagecode')
+			echo -e "Code ${RED}${CODE}${NC}"
+
+			if [[ $CODE == *"login-throttled"* ]]; then
+				echo "Sleeping 5 minutes and 10 seconds, then trying again"
+
+				seconds=310; date1=$((`date +%s` + $seconds)); 
+				while [ "$date1" -ge `date +%s` ]; do 
+					echo -ne "$(date -u --date @$(($date1 - `date +%s` )) +%H:%M:%S)\r"; 1>&2
+					sleep 1
+				done
+
+				return 1 #Try again
+			fi
+		fi
+		
+		ERROR==$(echo $CR | jq '.error')
+		if [[ $ERROR != "null" ]]; then
+			ERRORINFO=$(echo $CR | jq -r '.error.info')
+			echo -e "${RED}${ERRORINFO}${NC}"
+			
+			ERRORCODE=$(echo $CR | jq -r '.error.code')
+			echo -e "Code ${RED}${ERRORCODE}${NC}"
+
+			return 1 #Try again
+		fi
+
 		return 1
 	fi
 
 	###############
 	#Get edit token
-	echo "Fetching edit token..."
+	echo -e "${PURPLE}Fetching edit (CSRF) token using cookie...${NC}"
 	CR=$(curl -S \
 		--location \
-		--cookie $cookie_jar \
-		--cookie-jar $cookie_jar \
+		--retry 2 \
+		--retry-delay 5\
+		--cookie $COOKIEJAR \
+		--cookie-jar $COOKIEJAR \
 		--user-agent "nocat.sh by Smile4ever" \
 		--keepalive-time 60 \
 		--header "Accept-Language: en-us" \
 		--header "Connection: keep-alive" \
-		--header "Content-Type: application/json" \
 		--compressed \
-		--request "POST" "${WIKIAPI}?action=query&meta=tokens&format=json")
+		--request "GET" "${WIKIAPI}?action=query&meta=tokens&type=csrf&format=json")
 
-	echo "$CR" | jq .
+	if [[ $CR == *"error"* ]]; then
+	 	echo -e "${RED}Unexpected error occurred while retrieving edit token.${NC} URL:"
+	 	echo "Response:"
+	 	#echo "$CR" | head -n4
+	 	LINENUMBER=$(echo "$CR" | grep -n "content-text" | tail -n1 | cut -d : -f 1)
+	 	echo "$CR" | tail -n +$LINENUMBER | head -n -1
+	 	return 1
+	else
+		echo "$CR" | jq .
+	fi
+
+	rm edittoken.json 2>/dev/null
 	echo "$CR" > data/edittoken.json
-	EDITTOKEN=$(jq --raw-output '.query.tokens.csrftoken' data/edittoken.json)
-	#rm data/edittoken.json Keep file for auditing purposes
-
+	EDITTOKEN=$(jq -r '.query.tokens.csrftoken' data/edittoken.json)
 	EDITTOKEN="${EDITTOKEN//\"/}" #replace double quote by nothing
 
 	#Remove carriage return!
 	printf "%s" "$EDITTOKEN" > data/edittoken.txt
 	EDITTOKEN=$(cat data/edittoken.txt | sed 's/\r$//')
 
-	if [[ $EDITTOKEN == *"+\\"* ]]; then
-		echo "Edit token is: $EDITTOKEN"
-	else
-		echo "Edit token not set."
-		echo "EDITTOKEN was ${EDITTOKEN}"
+	if [ "$EDITTOKEN" == "null" ]; then
+		echo "Getting a edit token failed."
 		return 1
+	else
+		echo "Edit token is $EDITTOKEN"
+		echo "-----"
 	fi
 }
 
@@ -171,14 +210,17 @@ do
 {{nocat||${NOCAT}}}"
 
 	if [[ $EDIT == "true" ]]; then
-		# Try to login maximum 5 times
-		MAXTRIES=5
+		# Try to login maximum 10 times
+		MAXTRIES=10
 		for ((n=0;n<$MAXTRIES;n++))
 		do
 			do_login
 			if [[ $? == 1 ]]; then
-				echo "Retrying to login.."
-				sleep 10
+				SLEEPTIME=$(expr 10 + 3 \* $n)
+				RETRY=$(expr $n + 1)
+				echo -e "${PURPLE}Retrying to login in $SLEEPTIME seconds.. (try $RETRY)${NC}"
+
+				sleep $SLEEPTIME
 			else
 				break
 			fi
@@ -191,11 +233,14 @@ do
 	ALLPAGES="data/recentchanges.txt"
 
 	CURRENTCATSTXT="data/current-categories.txt"
-	PAGES="list-pages.txt"
+	LISTPAGES="list-pages.txt"
 	LISTEDITEDPAGES="list-editedpages.txt"
 
-	rm $PAGES 2>/dev/null
-	
+	rm $LISTPAGES 2>/dev/null
+	touch $LISTPAGES
+
+	echo "LOGINTOKEN: ${LOGINTOKEN}"
+	echo "EDITTOKEN: ${EDITTOKEN}"
 	echo "Fetching pages from lists (new, moved, uncategorized)"
 
 	# Completely new pages
@@ -222,8 +267,8 @@ do
 				--location \
 				--retry 2 \
 				--retry-delay 5\
-				--cookie $cookie_jar \
-				--cookie-jar $cookie_jar \
+				--cookie $COOKIEJAR \
+				--cookie-jar $COOKIEJAR \
 				--user-agent "nocat.sh by Smile4ever" \
 				--keepalive-time 60 \
 				--header "Accept-Language: en-us" \
@@ -270,8 +315,8 @@ do
 				--location \
 				--retry 2 \
 				--retry-delay 5\
-				--cookie $cookie_jar \
-				--cookie-jar $cookie_jar \
+				--cookie $COOKIEJAR \
+				--cookie-jar $COOKIEJAR \
 				--user-agent "nocat.sh by Smile4ever" \
 				--keepalive-time 60 \
 				--header "Accept-Language: en-us" \
@@ -347,8 +392,8 @@ do
 				--location \
 				--retry 2 \
 				--retry-delay 5\
-				--cookie $cookie_jar \
-				--cookie-jar $cookie_jar \
+				--cookie $COOKIEJAR \
+				--cookie-jar $COOKIEJAR \
 				--user-agent "nocat.sh by Smile4ever" \
 				--keepalive-time 60 \
 				--header "Accept-Language: en-us" \
@@ -385,14 +430,14 @@ do
 			fi
 
 			if [[ $EDIT == "true" ]]; then
-				echo "Editing ${article}"
+				echo -e "${PURPLE}Editing${NC} ${article}"
 
-				echo "Adding {{nocat}} template"
+				echo -e "${PURPLE}Adding {{nocat}} template${NC}"
 				
 				CR=$(curl -S \
 					--location \
-					--cookie $cookie_jar \
-					--cookie-jar $cookie_jar \
+					--cookie $COOKIEJAR \
+					--cookie-jar $COOKIEJAR \
 					--user-agent "nocat.sh by Smile4ever" \
 					--keepalive-time 60 \
 					--header "Accept-Language: en-us" \
@@ -412,13 +457,14 @@ do
 					echo -e "${OKARTICLECLEAN} - Skipping ${article}"
 				else
 					# Display errorinfo if non-empty
-					if [[  $ERRORINFO ]]; then
+					if [[ $ERRORINFO ]]; then
 						echo $CURLINFO
-						echo $ERRORINFO
+						echo -e "${RED}${ERRORINFO}${NC}"
+						echo "Edit token was ${EDITTOKEN}"
 					fi
 
 					echo "$CR" | jq .
-					echo $articleClean >> $PAGES
+					echo $articleClean >> $LISTPAGES
 					echo "Waiting 5 seconds"
 					sleep 5
 				fi
@@ -440,14 +486,14 @@ do
 	#rm $CURRENTCATSTXT
 
 	echo ""
-	COUNTEDITEDPAGES=$(cat $PAGES | wc -l)
+	COUNTEDITEDPAGES=$(cat $LISTPAGES | wc -l)
 	COUNTEDITEDPAGES=$(expr $COUNTEDITEDPAGES)
 
 	if [[ $COUNTEDITEDPAGES -eq 0 ]]; then
 		echo -e "${RED}I've edited no pages.${NC}"
 	else
 		echo -e "${RED}I've edited these pages:${NC}"
-		cat $PAGES
+		cat $LISTPAGES
 	fi
 	
 	if [[ -e $LISTEDITEDPAGES ]]; then
@@ -457,12 +503,12 @@ do
 	fi
 	
 	if [[ $COUNTEDITEDPAGES -ne 0 ]]; then
-		cat $PAGES >> $LISTEDITEDPAGES
+		cat $LISTPAGES >> $LISTEDITEDPAGES
 	fi
 	
 	#Delete all files in data directory
 	rm -rf data
-	rm $PAGES 2>/dev/null
+	rm $LISTPAGES 2>/dev/null
 	
 	CURDATE=$(date +"%Y-%m-%d %T")
 	echo ""
