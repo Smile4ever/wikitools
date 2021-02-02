@@ -203,7 +203,8 @@ do
 	mkdir data 2>/dev/null
 	
 	echo "Taking new pages, max 3 hours old (RCSTART)"
-	RCSTART=$(date -d '3 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
+	RCSTART=$(date -d '12 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
+	RCEND=$(data -d '9 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
 
@@ -244,7 +245,7 @@ do
 	echo "Fetching pages from lists (new, moved, uncategorized)"
 
 	# Completely new pages
-	wget "${WIKIAPI}?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}" -T 60 -O $RECENTCHANGES >/dev/null 2>&1
+	wget "${WIKIAPI}?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}&rcend=${RCEND}" -T 60 -O $RECENTCHANGES >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $ALLPAGES
 	# New pages that get moved soon after creation
 	wget "${WIKIAPI}?action=query&list=logevents&letype=move&lelimit=50&format=json" -T 60 -O $RECENTLOGS >/dev/null 2>&1
@@ -382,6 +383,11 @@ do
 				echo -e "${OKARTICLECLEAN} - Is being worked on"
 				continue
 			fi
+
+			if [[ $CONTENT == *"{{Gebruiker:Ellywa/Wiu2"* ]] || [[ $CONTENT == *"{{gebruiker:Ellywa/Wiu2"* ]]; then
+				echo -e "${OKARTICLECLEAN} - Is being worked on"
+				continue
+			fi
 			
 			if [[ $CONTENT == *"#doorverwijzing"* ]] || [[ $CONTENT == *"#DOORVERWIJZING"* ]] || [[ $CONTENT == *"#Doorverwijzing"* ]] || [[ $CONTENT == *"#redirect"* ]] || [[ $CONTENT == *"#REDIRECT"* ]] || [[ $CONTENT == *"#Redirect"* ]]; then
 				echo -e "${OKARTICLECLEAN} - Is a redirect page"
@@ -419,7 +425,7 @@ do
 			echo "Fetching talkpage edits before editing.."
 			wget "${WIKIAPI}?action=query&format=json&prop=revisions&continue=%7C%7C&titles=Overleg+gebruiker%3A${USERNAME}&converttitles=1&rvprop=timestamp&rvlimit=1" -T 60 -O data/date.json >/dev/null 2>&1
 
-			TODATE=$(date -d '150 minutes ago' "+%s")
+			TODATE=$(date -d '30 minutes ago' "+%s")
 			COND=$(grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' data/date.json)
 			CONDUNIX=$(date -d "$COND" '+%s')
 
