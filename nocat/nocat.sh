@@ -204,7 +204,7 @@ do
 	
 	echo "Taking new pages, max 3 hours old (RCSTART)"
 	RCSTART=$(date -d '12 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
-	RCEND=$(data -d '9 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
+	RCEND=$(date -d '9 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
 
