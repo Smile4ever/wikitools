@@ -202,9 +202,9 @@ do
     date +"%Y-%m-%d %T"
 	mkdir data 2>/dev/null
 	
-	echo "Taking new pages, max 3 hours old (RCSTART)"
-	RCSTART=$(date -d '12 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
-	RCEND=$(date -d '9 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
+	echo "Taking new pages, max 75 hours old (RCSTART), min 72 hours old (RCEND)"
+	RCSTART=$(date -d '75 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
+	RCEND=$(date -d '72 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
 
