@@ -202,9 +202,9 @@ do
     date +"%Y-%m-%d %T"
 	mkdir data 2>/dev/null
 	
-	echo "Taking new pages, max 75 hours old (RCSTART), min 72 hours old (RCEND)"
-	RCSTART=$(date -d '75 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
-	RCEND=$(date -d '72 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
+	echo "Taking new pages, max 75 hours old (RCEND), min 72 hours old (RCSTART)"
+	RCSTART=$(date -d '72 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
+	RCEND=$(date -d '75 hours ago' "+%Y-%m-%dT%H:%M:%S.000Z")
 	NOCAT=$(date +"%Y|%m|%d")
 	NOCAT="
 
@@ -247,12 +247,8 @@ do
 	# Completely new pages
 	wget "${WIKIAPI}?action=query&list=recentchanges&rcprop=title|user&rcnamespace=0&rctype=new&rclimit=50&rcshow=!redirect&format=json&rcstart=${RCSTART}&rcend=${RCEND}" -T 60 -O $RECENTCHANGES >/dev/null 2>&1
 	jq -r ".query.recentchanges[] | .title" $RECENTCHANGES > $ALLPAGES
-	# New pages that get moved soon after creation
-	wget "${WIKIAPI}?action=query&list=logevents&letype=move&lelimit=50&format=json" -T 60 -O $RECENTLOGS >/dev/null 2>&1
+	wget "${WIKIAPI}?action=query&list=logevents&letype=move&lelimit=50&format=json&lestart=${RCSTART}&leend=${RCEND}" -T 60 -O $RECENTLOGS >/dev/null 2>&1
 	jq -r ".query.logevents[] | .params.target_title" $RECENTLOGS | grep -v ":" >> $ALLPAGES
-	# Pages that have made it to the "shame list" of Wikipedia
-	wget "${WIKIAPI}?action=query&list=querypage&qppage=Uncategorizedpages&format=json" -T 60 -O $RECENTNOCAT >/dev/null 2>&1
-	jq -r ".query.querypage.results[] | .title" $RECENTNOCAT | grep -v ":" >> $ALLPAGES
 
 	IFS=$'\n'
 	for article in $(cat $ALLPAGES | tr -d '\r')    
