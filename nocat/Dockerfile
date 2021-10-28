@@ -12,5 +12,6 @@ COPY config/password.txt ./config/password.txt
 
 RUN mkdir data/
 RUN chmod a+rwx -R data/
+RUN chmod +x /home/nocat/nocat.sh
 
-CMD ["./nocat.sh"]
+ENTRYPOINT ["./nocat.sh"]
