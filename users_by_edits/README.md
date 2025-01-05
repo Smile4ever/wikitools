@@ -1,48 +1,50 @@
 Users by edits
 ----------
 
-users_by_edits is a script to generate a list of users including user count on a MediaWiki website, using the MediaWiki API. Sorting and filtering of bot accounts is done automatically. The generated data can be further processed with jq if desired.
+users_by_edits is a script to generate a list of users including user count on a MediaWiki website, using the MediaWiki API. Sorting and filtering of bot accounts is done automatically.
+
+The generated data can be further processed with jq if desired.
 
 Time is in UTC.
 
-Data that has previously been generated can be found here: ftp://itsafeature.org/users_by_edits
-
 Requirements
 ------------
-* wget
 * curl
 * jq
 * uniq
-* parallel
 
-For big wikis, a 64 bit computer and at least 8 gigabytes of free RAM is recommended.
+For big wikis, a computer with at least 8 gigabytes of free RAM is recommended.
 
 Usage
 ------
 Create the list:
   ./users_by_edits.sh
  
-This will create the list for nl.wikipedia.org. Depending on your internet connection and the number of users on the wiki, this can take from a few minutes to a few hours. The list will be saved as "usernames-all.tsv".
+This will create the list for nl.wikipedia.org. Depending on your internet connection and the number of users on the wiki, this can take from a few minutes to several hours. The list will be saved as "usernames-all.tsv".
 
 While running the script, it will display its progress by showing the next user (+499) that will be retrieved.
 
 After that, it will retrieve first edit datetime, last edit datetime and whether the user is a bot (in the past or currently).
 
 Configuration
-----------------------
+-------------
 
 You can specify which wiki to generate the list for:
-  PROTOCOL="https://" WIKI="en.wikipedia.org" ./users_by_edits.sh
+  WIKI="https://en.wikipedia.org" ./users_by_edits.sh
 
 To use your correct locale, specify $I18N_EDITS and $I18N_USER:
-  PROTOCOL="https://" WIKI="en.wikipedia.org" I18N_EDITS="edits" $I18N_USER="User" ./users_by_edits.sh
+  WIKI="https://en.wikipedia.org" I18N_EDITS="edits" $I18N_USER="User" ./users_by_edits.sh
 
 These are the default values:
 
-* PROTOCOL="https://"
-* WIKI="nl.wikipedia.org"
+* WIKI="https://nl.wikipedia.org"
 * I18N_EDITS="bewerkingen"
 * I18N_USER="Gebruiker"
+
+Specifics
+---------
+* To increase performance, only users with at least 100 edits are processed
+* The function calculateIsBot does some tricks to see which accounts are bots. It's not perfect, so some users have overrides.
 
 Output
 ------
