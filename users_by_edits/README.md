@@ -12,8 +12,14 @@ Requirements
 * curl
 * jq
 * uniq
+* parallel (recommended)
 
 For big wikis, a computer with at least 8 gigabytes of free RAM is recommended.
+
+Operating systems:
+* Linux supported
+* macOS not tested
+* Windows Subsystem for Linux (WSL) works
 
 Usage
 ------

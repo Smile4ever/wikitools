@@ -33,22 +33,22 @@ LENGTHMAX=500
 GLOBAL_LOGEVENTJSON="" # Global variable for storing log events JSON
 
 urlencode() {
-    local LANG=C
-    local length="${#1}"
+	local LANG=C
+	local length="${#1}"
 
-    for (( i = 0; i < length; i++ )); do
-        local c="${1:i:1}"
-        case $c in
-            [a-zA-Z0-9.~_-]) printf "$c" ;;
-            *) printf '%%%02X' "'$c" ;; 
-        esac
-    done
+	for (( i = 0; i < length; i++ )); do
+		local c="${1:i:1}"
+		case $c in
+			[a-zA-Z0-9.~_-]) printf "$c" ;;
+			*) printf '%%%02X' "'$c" ;; 
+		esac
+	done
 }
 
 calculateIsBot() {
-    # Take the username as the input parameter
-    local username="$1" # ENCUSERNAME
-    
+	# Take the username as the input parameter
+	local username="$1" # ENCUSERNAME
+	
 	# Mark bots that were not detected in the logs that don't contain bot (known system bots)
 	if [[ "$username" == "MediaWiki%20message%20delivery" || "$username" == "CommonsDelinker" || "$username" == "InternetArchiveBot" ]]; then
 		echo "$ENCUSERNAME is a known system bot" >> calculateIsBots.txt
@@ -57,7 +57,7 @@ calculateIsBot() {
 	fi
 
 	# Mark unrecognised bots
-	if [[ "$username" == "JAnDbot" || "$username" == "WillBot" || "$username" == "GhalyBot" || "$username" == "RobotTbc" || "$username" == "Erwin85Bot" || "$username" == "RobotMichiel1972" ]]; then
+	if [[ "$username" == "JAnDbot" || "$username" == "WillBot" || "$username" == "GhalyBot" || "$username" == "RobotTbc" || "$username" == "Erwin85Bot" || "$username" == "RobotMichiel1972" || "$username" == "Loveless" ]]; then
 		echo "$username is a known bot" >> calculateIsBots.txt
 		echo "true|knownbot"
 		return 0
@@ -73,36 +73,34 @@ calculateIsBot() {
 	fi
 
 	# Bug: Ghgh is a bot. Matched: '[[Bot (computerprogramma)...]]'
-	# Bug: Dup%20duitser3 is a bot. Matched: '{{Bot...}}' template -- {{Bots}} shouldn't be matched - should be okay
+	# Bug: Dup%20duitser3 is a bot. Matched: '{{Bot...}}' template -- {{Bots}} shouldn't be matched
 	# Bug: Ceescamel is a bot. Matched: '[[Bot (computerprogramma)...]]'
 	# Bug: Bjelka is a bot. Matched: '[[Bot (computerprogramma)...]]'
 	# Bug: Quizmaster12 is a bot. Matched: '[[Bot (computerprogramma)...]]'
-	# Bug: GingerbreadmanNL is a bot. Matched: '{{Bot...}}' template -- {{BOT}} shouldn't be matched - should be okay
 	# Bug: Barkruk%20Henkie is a bot. Matched: '[[Bot (computerprogramma)...]]'
 	# Bug: Joshua6464 is a bot. Matched: '[[Bot (computerprogramma)...]]'
 
-	if [[ "$username" == "Ghgh" || "$username" == "Ceescamel" || "$username" == "Bjelka" || "$username" == "Quizmaster12" || "$username" == "Barkruk%20Henkie" || "$username" == "Joshua6464" ]]; then
+	if [[ "$username" == "Ghgh" || "$username" == "Dup%20duitser3" || "$username" == "Ceescamel" || "$username" == "Bjelka" || "$username" == "Quizmaster12" || "$username" == "Barkruk%20Henkie" || "$username" == "Joshua6464" ]]; then
 		echo "$username is a known non-bot (bug)" >> calculateIsBots.txt
 		echo "false|knownuserbug"
 		return 0
 	fi
 
-    # Fetch the wikitext of the user page using the MediaWiki API
-    local response=$(curl -sS "$WIKI/w/api.php?action=query&prop=revisions&titles=User:${username}&rvslots=*&rvprop=content&formatversion=2&format=json")
-    # Extract the content using jq
-    local content=$(echo "$response" | jq -r '.query.pages[0].revisions[0].slots.main.content')
-    local contentlimited=$(echo "$response" | jq -r '.query.pages[0].revisions[0].slots.main.content' | head -n 5)
-
+	# Fetch the wikitext of the user page using the MediaWiki API
+	local response=$(curl -sS --retry 5 --retry-delay 30 --retry-connrefused "$WIKI/w/api.php?action=query&prop=revisions&titles=User:${username}&rvslots=*&rvprop=content&formatversion=2&format=json")
+	# Extract the content using jq
+	local content=$(echo "$response" | jq -r '.query.pages[0].revisions[0].slots.main.content')
+	local contentlimited=$(echo "$response" | jq -r '.query.pages[0].revisions[0].slots.main.content' | head -n 5)
+	
 	# Fetch the JSON response
-	responseLogPatrolEvents=$(curl -sS "$WIKI/w/api.php?action=query&list=logevents&letype=patrol&leuser=${username}&lelimit=100&format=json")
+	#responseLogPatrolEvents=$(curl -sS --retry 5 --retry-delay 30 --retry-connrefused "$WIKI/w/api.php?action=query&list=logevents&letype=patrol&leuser=${username}&lelimit=100&format=json")
 
 	# Count the number of patrol log entries using jq
-	patrolled_count=$(echo "$responseLogPatrolEvents" | jq '.query.logevents | length')
-
-    # Check if the content contains "{{Bot"
-	#if echo "$content" | grep -qi '{{Bot.*}}'; then
-	if echo "$content" | grep -q '{{[Bb]ot[^s}]*}}'; then
-		echo "$username is a bot. Matched: '{{Bot...}}' template" >> calculateIsBots.txt
+	local patrolled_count=100 #$(echo "$responseLogPatrolEvents" | jq '.query.logevents | length')
+	
+	# Check if the content contains "{{Bot"
+	if echo "$content" | grep -q '{{[Bb]ot[^s]*'; then
+		echo "$username is a bot. Matched1: '{{Bot...}}' template" >> calculateIsBots.txt
 		echo "true|template"
 		return 0
 	fi
@@ -114,8 +112,15 @@ calculateIsBot() {
 
 	if [[ $username_contains_bot == "true" ]]; then
 		if echo "$content" | grep -qi 'Crystal Clear action run.'; then
-			echo "$username is a bot. Matched: Crystal Clear action run.png/svg" >> calculateIsBots.txt
+			echo "$username is a bot. Matched2: Crystal Clear action run.png/svg" >> calculateIsBots.txt
 			echo "true|icon"
+			return 0
+		fi
+		
+		# BotSvdmolen
+		if echo "$content" | grep -qi '\[\[Wikipedia:Bots\|?.*?\]\]'; then
+			echo "$username is a bot. Matched2: '[[Wikipedia:Bots...]]'" >> calculateIsBots.txt
+			echo "true|linkbots"
 			return 0
 		fi
 	fi
@@ -127,24 +132,20 @@ calculateIsBot() {
 
 	if [[ $patrolled_count -lt 10 || $username_endswith_bot == "true" ]]; then
 		if echo "$content" | grep -qi '\b(bot van|de bot|the bot)\b'; then
-			echo "$username is a bot. Matched: phrases like 'bot van', 'de bot', or 'the bot'" >> calculateIsBots.txt
+			echo "$username is a bot. Matched3: phrases like 'bot van', 'de bot', or 'the bot'" >> calculateIsBots.txt
 			echo "true|phrase"
 			return 0
 		elif echo "$content" | grep -qi '\[\[Bot \(computerprogramma\)\|?.*?\]\]'; then
-			echo "$username is a bot. Matched: '[[Bot (computerprogramma)...]]'" >> calculateIsBots.txt
+			echo "$username is a bot. Matched3: '[[Bot (computerprogramma)...]]'" >> calculateIsBots.txt
 			echo "true|linkcomputerprogramma"
 			return 0
 		elif echo "$content" | grep -qi '\[\[Wikipedia:Bot\]\]'; then
-			echo "$username is a bot. Matched: '[[Wikipedia:Bot]]'" >> calculateIsBots.txt
+			echo "$username is a bot. Matched3: '[[Wikipedia:Bot]]'" >> calculateIsBots.txt
 			echo "true|linkbot"
 			return 0
 		elif echo "$content" | grep -qi '\[\[Wikipedia:Systeembots\]\]'; then
-			echo "$username is a bot. Matched '[[Wikipedia:Systeembots]]'" >> calculateIsBots.txt
+			echo "$username is a bot. Matched3: '[[Wikipedia:Systeembots]]'" >> calculateIsBots.txt
 			echo "true|linksysteembot"
-			return 0
-		elif echo "$content" | grep -qi '\[\[Wikipedia:Bots\|?.*?\]\]'; then
-			echo "$username is a bot. Matched: '[[Wikipedia:Bots...]]'" >> calculateIsBots.txt
-			echo "true|linkbots"
 			return 0
 		fi
 	fi
@@ -154,14 +155,14 @@ calculateIsBot() {
 		local responseRevisions=$(curl -sS "$WIKI/w/api.php?action=query&prop=revisions&titles=User:${username}&rvslots=*&rvprop=content&formatversion=2&format=json&rvlimit=100")
 
 		# Count the number of revisions using jq
-		local revision_count=$(echo "$responseRevisions" | jq '.query.pages[].revisions | length')
-		
-		if [ $revision_count -le 40 ]; then
-			echo "$username is probably a bot, username contains bot (revisions $revision_count, marked as patrolled $patrolled_count)." >> calculateIsBots.txt
+		local revision_count=$(echo "$responseRevisions" | jq '.query.pages[].revisions | length')	
+	
+		if [[ $revision_count -le 40 ]]; then
+			echo "$username is probably a bot, username contains bot (revisions $revision_count)." >> calculateIsBots.txt
 			echo "true|revisioncountlowcontainsbot"
 			return 0
 		else
-			echo "$username is no bot (revisions $revision_count, marked as patrolled $patrolled_count), but username contains bot for some reason. Content was $contentlimited" >> calculateIsBots.txt
+			echo "$username is no bot (revisions $revision_count), but username contains bot for some reason. Content was $contentlimited" >> calculateIsBots.txt
 			echo "false|revisioncounttoohigh"
 			return 0
 		fi
@@ -172,7 +173,7 @@ calculateIsBot() {
 }
 
 doaction() {
-    username="$1"
+	username="$1"
    	ENCUSERNAME=`urlencode "$username"`
    	#echo "Retrieve first edit, last edit and bot flag for $username" # -> $ENCUSERNAME
    
@@ -189,8 +190,8 @@ doaction() {
 		fi
 	fi
 
-    # LAST edit
-    #echo "Fetching last edit for $ENCUSERNAME.."
+	# LAST edit
+	#echo "Fetching last edit for $ENCUSERNAME.."
    	LASTEDITJSON=$(curl -sS "$WIKI/w/api.php?action=query&list=usercontribs&ucuser=$ENCUSERNAME&uclimit=1&ucdir=older&format=json")
    	LASTEDIT=$(echo $LASTEDITJSON | jq -r '.query.usercontribs[0].timestamp') 
 	if [[ $LASTEDIT == "null" || $LASTEDIT == "" ]]; then
@@ -202,21 +203,21 @@ doaction() {
 		fi
 	fi
 
-    # Log events  
-    ISBOT="false"
+	# Log events  
+	ISBOT="false"
 
-    # Parse log events from the global variable for the current user
-    LOGEVENT=$(echo $GLOBAL_LOGEVENTJSON | jq -r --arg userParam "$username" '.query.logevents[] | select(.user == $userParam) | .params | tostring | select(contains("bot"))')
+	# Parse log events from the global variable for the current user
+	LOGEVENT=$(echo $GLOBAL_LOGEVENTJSON | jq -r --arg userParam "$username" '.query.logevents[] | select(.user == $userParam) | .params | tostring | select(contains("bot"))')
 
-    if [ $? -ne 0 ]; then
-        echo "jq crashed or something else went wrong while parsing logevents for $username"
-        exit $?
-    fi
+	if [ $? -ne 0 ]; then
+		echo "jq crashed or something else went wrong while parsing logevents for $username"
+		exit $?
+	fi
 
-    if [[ -n "$LOGEVENT" && "$LOGEVENT" != "null" ]]; then
-        echo "User $username has bot related log events." >> calculateIsBots.txt
-        ISBOT="true"
-    fi
+	if [[ -n "$LOGEVENT" && "$LOGEVENT" != "null" ]]; then
+		echo "User $username has bot related log events." >> calculateIsBots.txt
+		ISBOT="true"
+	fi
 	
 	# If logevents were always available and all bots would have a bot flag, we wouldn't need calculateIsBot
 	if [[ "$ISBOT" == "false" ]]; then
@@ -225,19 +226,17 @@ doaction() {
 
 	# Split the result into isbot and reason
 	IFS='|' read -r ISBOT ISBOT_REASON <<< "$ISBOTRESULT"
-	
-	tput sc  # Save current cursor position
-	if [[ "$ISBOT" == "true" ]]; then
-		echo "Bot $username $ISBOT_REASON"
-	else
-		echo "User $username $ISBOT_REASON"
-	fi
-    tput rc  # Restore saved cursor position
 
-    username=$(echo "$username" | sed --expression='s/"/\\"/g')
-    
-    # Write result for this user to file
-    echo "{ \"name\": \"$username\", \"firstedit\": \"$FIRSTEDIT\", \"lastedit\": \"$LASTEDIT\", \"bot\": \"$ISBOT\" }," >> edit-dates.json
+	if [[ "$ISBOT" == "true" ]]; then
+		echo " - Bot $username $ISBOT_REASON"
+	else
+		echo " - User $username $ISBOT_REASON"
+	fi
+	
+	username=$(echo "$username" | sed --expression='s/"/\\"/g')
+	
+	# Write result for this user to file
+	echo "{ \"name\": \"$username\", \"firstedit\": \"$FIRSTEDIT\", \"lastedit\": \"$LASTEDIT\", \"bot\": \"$ISBOT\" }," >> edit-dates.json
 }
 
 if test -n "$(find . -maxdepth 1 -name 'api.php*' -print -quit)"
@@ -317,7 +316,6 @@ if [ ! -f "sorted-data.json" ]; then
 		AUFROM=`jq -r '.continue.aufrom' api.php*`
 		echo "$AUFROM"
 
-		#jq -r '.query.allusers[] | {name: .name, editcount: .editcount, groups: .groups}' api.php* >> result.json
 		jq -r '.query.allusers[] | select(.editcount >= 100) | {name: .name, editcount: .editcount, groups: .groups}' api.php* >> result.json
 	done
 
@@ -344,11 +342,14 @@ fi
 
 ##########################################################################################################################################
 if [ ! -f "edit-dates.json" ]; then
-	echo "Expanding JSON data with edit dates and bot data (highlimit is $HIGHLIMIT)"
+	echo "Retrieving edit dates and bot data (highlimit is $HIGHLIMIT) to expand JSON data"
+	total=0;
+	
 	if jq -r '.[] | [ .name ] | join("\n")' sorted-data.json | head -n$HIGHLIMIT > usernames.$HIGHLIMIT.txt; then
-		echo "Succesfully made list usernames.$HIGHLIMIT.txt"
+		total=$(wc -l < "usernames.$HIGHLIMIT.txt") # Count total usernames
+		echo "Succesfully made list usernames.$HIGHLIMIT.txt ($total usernames)"
 	else
-		echo "Succesfully make list usernames.$HIGHLIMIT.txt"
+		echo "Failed to make list usernames.$HIGHLIMIT.txt"
 		rm -f usernames.$HIGHLIMIT.txt
 		exit 1
 	fi
@@ -361,21 +362,44 @@ if [ ! -f "edit-dates.json" ]; then
 	export -f calculateIsBot
 	export WIKI=$WIKI
 
-	total=$(wc -l < "usernames.$HIGHLIMIT.txt")  # Count total usernames
 	completed=0  # Initialize completed counter
 
-	echo "$total"
-
-	while IFS= read -r -d '' username; do
-		doaction "$username" &
-		if [[ $(jobs -r -p | wc -l) -ge 30 ]]; then
-			wait -n  # Wait for any job to finish
+	tput sc  # Save current cursor position
+	
+	parallel --version | head -n1
+	if [ $? -ne 0 ]
+	then
+		echo "GNU parallel is not installed, script will run slowly"
+	
+		while IFS= read -r -d '' username; do
+			doaction "$username"
 			((completed++))
-        	echo -ne "\rProgress: $completed/$total completed"
-		fi
-	done < <(tr -d '\r' < "usernames.$HIGHLIMIT.txt" | tr '\n' '\0')
+			
+			tput rc  # Restore saved cursor position
+			#echo -ne "\r\033[KProgress: $completed/$total completed"
+			echo -e "\rProgress: $completed/$total completed"
+		done < <(tr -d '\r' < "usernames.$HIGHLIMIT.txt" | tr '\n' '\0')
+	
+		wait # Wait for all jobs to finish
+		sleep 1
+	else
+		# GNU parallel is installed, but to avoid bug script will run only 12 threads
+		cat "usernames.$HIGHLIMIT.txt" | parallel --progress --gnu -P 12 doaction {}
+	fi
+	
+	#while IFS= read -r -d '' username; do
+	#	doaction "$username" &
+	#	if [[ $(jobs -r -p | wc -l) -ge 10 ]]; then
+	#		wait -n  # Wait for any job to finish
+	#		((completed++))
+			
+	#		tput rc  # Restore saved cursor position
+	#		#echo -ne "\r\033[KProgress: $completed/$total completed"
+	#		echo -e "\rProgress: $completed/$total completed"
+	#	fi
+	#done < <(tr -d '\r' < "usernames.$HIGHLIMIT.txt" | tr '\n' '\0')
 
-	wait # Wait for all jobs to finish
+	#wait # Wait for all jobs to finish
 
 	# Make the end (replace comma by closing square bracket)
 	sed -i edit-dates.json -e '$s/,$/]/'
@@ -420,13 +444,13 @@ jq -r '.[] | [ .name, .firstedit, .lastedit, .editcount|tostring ] | join("\t")'
 ###########################################################################################################################################
 echo "Creating wikitext files"
 
-jq -r '.[] | [ "# {{intern|1=title='""$I18N_USER""':", (.name | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '""$I18N_EDITS""': ", (.editcount|tostring) ] | join("")' usernames-all.json > usernames-all-wikitext.txt
+jq -r '.[] | [ "# {{intern|1=title='""$I18N_USER""':", (.name | gsub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '""$I18N_EDITS""': ", (.editcount|tostring) ] | join("")' usernames-all.json > usernames-all-wikitext.txt
 sed -i 's/$/)/' usernames-all-wikitext.txt
 
-jq -r '.[] | [ "# {{intern|1=title='""$I18N_USER""':", (.name | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '""$I18N_EDITS""': ", (.editcount|tostring) ] | join("")' usernames-bots.json | cat > usernames-bots-wikitext.txt
+jq -r '.[] | [ "# {{intern|1=title='""$I18N_USER""':", (.name | gsub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '""$I18N_EDITS""': ", (.editcount|tostring) ] | join("")' usernames-bots.json | cat > usernames-bots-wikitext.txt
 sed -i 's/$/)/' usernames-bots-wikitext.txt
 
-jq -r '.[] | [ "# {{intern|1=title='""$I18N_USER""':", (.name | sub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '""$I18N_EDITS""': ", (.editcount|tostring) ] | join("")' usernames-normal.json | cat > usernames-normal-wikitext.txt
+jq -r '.[] | [ "# {{intern|1=title='""$I18N_USER""':", (.name | gsub(" "; "_")), "|2=", .name, "}} (", .firstedit, " - ", .lastedit, " - '""$I18N_EDITS""': ", (.editcount|tostring) ] | join("")' usernames-normal.json | cat > usernames-normal-wikitext.txt
 sed -i 's/$/)/' usernames-normal-wikitext.txt
 
 ###########################################################################################################################################
